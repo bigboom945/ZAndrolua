@@ -90,7 +90,7 @@ local function binapk(luapath, apkpath)
   require "import"
   compile "mao"
   compile "sign"
-  compile "dx-1.7"
+  compile "dx-1.14"
   import "console"
   import "java.util.zip.*"
   import "java.io.*"
@@ -98,11 +98,14 @@ local function binapk(luapath, apkpath)
   import "mao.util.*"
   import "mao.res.*"
   import "apksigner.*"
-  import "com.android.dx.io.DexBuffer"
   import "com.android.dx.merge.DexMerger"
+  import "com.android.dx.merge.CollisionPolicy"
+  import "com.android.dx.dex.file.DexFile"
+  import "com.android.dx.dex.DexOptions"
+  import "com.android.dex.Dex"
+  import "com.android.dx.command.dexer.DxContext"
   import "java.io.ByteArrayOutputStream"
   import "java.io.ByteArrayInputStream"
-  import "com.android.dx.merge.CollisionPolicy"
   import "tl"
   local b = byte[65536]
   -----2 ^ 16
@@ -374,9 +377,8 @@ local function binapk(luapath, apkpath)
         end
 
        elseif name:find("%.dex$") then
-
         if(MergeDex[dir..name] or MergeDexAll)
-          table.insert(MergeDexList,DexBuffer(File(luapath..dir..name)))
+          table.insert(MergeDexList,Dex(File(luapath..dir..name)))
          else
           local entry = ZipEntry("assets/" .. dir .. name)
           out.putNextEntry(entry)
@@ -502,7 +504,6 @@ local function binapk(luapath, apkpath)
     local z1sf
     local z1s
 
-    --print(ee,dump(errbuffer),dump(replace))
     if File(luapath.."so").isDirectory()
       --添加用户自定义so
       lpats=luajava.astable(File(luapath.."so").list())
@@ -512,11 +513,10 @@ local function binapk(luapath, apkpath)
           z1s=luajava.astable(z1sf.listFiles())
           for k2,v2 in ipairs(z1s)
             local welx = z1s[k2]
-
             local entry = ZipEntry("lib/"..tostring(lpats[k]).."/"..z1s[k2].getName())
+
             out.putNextEntry(entry)
             copy(FileInputStream(welx), out)
-
           end
         end
 
@@ -543,7 +543,6 @@ local function binapk(luapath, apkpath)
     return "error"
   end
 
-  --print(dump(lualib))
   for name, v in pairs(lualib) do
     --local path
     local path, err;
@@ -591,21 +590,10 @@ local function binapk(luapath, apkpath)
      elseif name:find("^assets/") then
      elseif name:find("^lua/") then
      elseif name:find("META%-INF") then
-     elseif(name=="classes.dex") and #MergeDexList>0
-      local byte=byte[1024];
-      local num=zis.read(byte,0,#byte)
-      local bout=ByteArrayOutputStream()
-
-      while(num~=-1)
-        bout.write(byte)
-        num=zis.read(byte,0,#byte)
-      end
-
-      table.insert(MergeDexList,DexBuffer(bout.toByteArray()))
+     elseif (name=="classes.dex") and ((#MergeDexList)>0) then
+      table.insert(MergeDexList,Dex(LuaUtil.readAll(zis)))
      else
-
       local entry = ZipEntry(name)
-
       out.putNextEntry(entry)
       if entry.getName() == "AndroidManifest.xml" then
         if path_pattern and #path_pattern > 1 then
@@ -663,16 +651,12 @@ local function binapk(luapath, apkpath)
 
 
   if((#MergeDexList)>0)
-    local dexbuf=MergeDexList[1];
-
-    for i=2,(#MergeDexList)-1
-      dexbuf=DexMerger(dexbuf,MergeDexList[i+1], CollisionPolicy.FAIL).merge();
-    end
-
+    local dexc=DxContext()
+    local dexs=DexMerger(Dex(MergeDexList),CollisionPolicy.FAIL,dexc).merge();
     local entry = ZipEntry("classes.dex")
     out.putNextEntry(entry)
-    dexbuf.writeTo(out)
-    table.insert(md5s, LuaUtil.getFileMD5(ByteArrayInputStream(dexbuf.getBytes())))
+    dexs.writeTo(out)
+    table.insert(md5s, LuaUtil.getFileMD5(ByteArrayInputStream(dexs.getBytes())))
   end
 
   out.setComment(table.concat(md5s))

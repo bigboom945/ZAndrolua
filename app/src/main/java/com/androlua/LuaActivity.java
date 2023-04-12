@@ -36,7 +36,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.StrictMode;
 import android.provider.MediaStore;
-import android.support.annotation.NonNull;
 import android.text.style.ClickableSpan;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -92,10 +91,10 @@ import android.util.*;
 import android.app.*;
 import android.widget.*;
 import android.text.*;
-
+import android.content.pm.PackageManager;
+import android.content.pm.PackageInfo;
 
 public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnReceiveListener, LuaContext {
-
     private final static String ARG = "arg";
     private final static String DATA = "data";
     private final static String NAME = "name";
@@ -151,7 +150,6 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
     private LuaObject mOnKeyShortcut;
     public LuaObject Windowjumpevent = null;
     public Uri MopenFile = null;
-
     private static byte[] readAll(InputStream input) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream(4096);
         byte[] buffer = new byte[4096];
@@ -165,19 +163,15 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
     }
 
     public void prevent_Xpose() {
-
         if (isXposed()) {
             this.finish();
         }
     }
 
-
     public Uri getOpenFile() {
         // return MopenFile.
         return null;
-
     }
-
 
     public String getLuaLibPath() {
         return String.valueOf(this.getDir("lua", this.MODE_PRIVATE));
@@ -199,8 +193,6 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
                 }
             }
         }
-
-
     }
 
     public HashMap<String, String> getLibrarys() {
@@ -213,7 +205,6 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
             MopenFile = getIntent().getData();
         }
         setTheme(android.R.style.Theme_Holo_Light_NoActionBar);
-
         //设置主题
 //		Intent intent=getIntent();
 //		int theme=intent.getIntExtra("theme", android.R.style.Theme_Holo_Light_NoActionBar);
@@ -248,6 +239,8 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
                 return view;
             }
         };
+	
+		
         list.setAdapter(adapter);
         layout.addView(list, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
@@ -266,11 +259,8 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
         luaDir = localDir;
         luaLpath = app.getLuaLpath();
         luaExtDir = app.getLuaExtDir();
-
-
+		
         handler = new MainHandler();
-
-
         try {
             status.setText("");
             adapter.clear();
@@ -291,7 +281,6 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
             mLuaDexLoader.loadLibs();
             //MultiDex.installLibs(this);
             sLuaActivityMap.put(pageName, this);
-
 
             if (intent.getSerializableExtra(MAINLUACODE) != null) {
                 L.LdoString((String) intent.getSerializableExtra(MAINLUACODE));
@@ -331,7 +320,6 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
         if (onAccessibilityEvent.isFunction())
             LuaAccessibilityService.onAccessibilityEvent = onAccessibilityEvent.getFunction();
 
-
         //check2();
         //  check3();
       /* try {
@@ -355,9 +343,12 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
                 d.show();
                 return;
             }}*/
-
-
     }
+
+	@Override
+	public void addContentView(View view, ViewGroup.LayoutParams params) {
+		super.addContentView(view, params);
+	}
 
     private void chcek1() {
         try {
@@ -418,7 +409,7 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
             }*/
         }
     }
-
+    
     private boolean check2x() {
         try {
             Field v0_1 = ClassLoader.getSystemClassLoader().loadClass("de.robv.android.xposed.XposedBridge").getDeclaredField("disableHooks");
@@ -463,14 +454,9 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
         try {
             Object localObject = ClassLoader.getSystemClassLoader().loadClass("de.robv.android.xposed.XposedHelpers").newInstance();
             // 如果加载类失败 则表示当前环境没有xposed
-
-
             if (localObject != null) {
                 if (ax(localObject, "fieldCache") | ax(localObject, "methodCache") | ax(localObject, "constructorCache")
-
                 ) {
-
-
                     return true;
                 }
             }
@@ -512,11 +498,9 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
     }
 
     public boolean isXposed() {
-
         if (check3x()) {
             return true;
         }
-
         return false;
     }
 
@@ -931,7 +915,7 @@ public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnRece
         startActivity(Intent.createChooser(share, file.getName()));
     }
 
-    private String getType(@NonNull File file) {
+    private String getType( File file) {
         int lastDot = file.getName().lastIndexOf(46);
         if (lastDot >= 0) {
             String extension = file.getName().substring(lastDot + 1);

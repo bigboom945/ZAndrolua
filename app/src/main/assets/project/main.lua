@@ -3,12 +3,13 @@ import "android.app.*"
 import "android.os.*"
 import "android.widget.*"
 import "android.view.*"
+import "android.content.Intent"
+import "android.net.Uri"
 import "java.io.File"
 import "layout"
 import "item"
 import(activity.getPackageName()..".R")
 import "autotheme"
-
 activity.setTitle('工程')
 activity.setTheme(autotheme())
 activity.setContentView(loadlayout(layout))
@@ -33,7 +34,7 @@ for n=0,#pds-1 do
 end
 
 function sort(a,b)
-  return string.lower(a.appname) < string.lower(b.appname)
+  return string.lower(tostring(a.appname)) < string.lower(tostring(b.appname))
 end
 
 table.sort(pls,sort)
@@ -43,7 +44,7 @@ function checkicon(i)
   if f then
     f:close()
     return i
-  else
+   else
     return R.drawable.icon
   end
 end
@@ -51,9 +52,8 @@ end
 adp=LuaAdapter(activity,item)
 for k,v in ipairs(pls) do
   local i=plugindir..v.path.."/icon.png"
-  adp.add{icon=checkicon(i),title=v.appname.." "..v.appver,path=v.path,description=v.description or ""}
+  adp.add{icon=checkicon(i),title=tostring(v.appname).." "..tostring(v.appver),path=tostring(v.path),description=tostring(v.description) or ""}
 end
-_adp=adp
 plist.Adapter=adp
 plist.onItemClick=function(l,v,p,i)
   --activity.overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);	
@@ -61,19 +61,17 @@ plist.onItemClick=function(l,v,p,i)
 end
 
 function shortcut(path)
-  import "android.content.Intent"
-  import "android.net.Uri"
-  intent = Intent(); 
+  intent = Intent();
   intent.setClass(activity, activity.getClass());
   intent.setData(Uri.parse("file://"..path))
-  addShortcut = Intent("com.android.launcher.action.INSTALL_SHORTCUT"); 
-  icon = Intent.ShortcutIconResource.fromContext(activity, 
-  R.drawable.icon); 
-  addShortcut.putExtra(Intent.EXTRA_SHORTCUT_NAME, "工程列表"); 
-  addShortcut.putExtra(Intent.EXTRA_SHORTCUT_INTENT, intent); 
-  addShortcut.putExtra("duplicate", 0); 
-  addShortcut.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, icon); 
-  activity.sendBroadcast(addShortcut); 
+  addShortcut = Intent("com.android.launcher.action.INSTALL_SHORTCUT");
+  icon = Intent.ShortcutIconResource.fromContext(activity,
+  R.drawable.icon);
+  addShortcut.putExtra(Intent.EXTRA_SHORTCUT_NAME, "工程列表");
+  addShortcut.putExtra(Intent.EXTRA_SHORTCUT_INTENT, intent);
+  addShortcut.putExtra("duplicate", 0);
+  addShortcut.putExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, icon);
+  activity.sendBroadcast(addShortcut);
 end
 --shortcut(activity.getLuaPath())
 

@@ -54,6 +54,20 @@ version = Build.VERSION.SDK_INT;
 h = tonumber(os.date("%H"))
 setsets=AppSharedPreferences.edit()
 
+function loadHelpData()
+  local list={}
+  for t,c in LuaUtil.readString(activity.getLuaDir().."/helpText.txt"):gmatch("(%b@@)\n*(%b@@)") do
+    --print(t)
+    t=t:sub(2,-2)
+    c=c:sub(2,-2)
+    list[t]=c
+    list[#list+1]=t
+  end
+  LuaActivityShare.setData("HelpText",HashMap(list))
+end
+
+loadHelpData()
+
 if(AppSharedPreferences.getString("debugft",nil)=="true")
   debugisvar=true
 end
@@ -97,7 +111,9 @@ function onVersionChanged(n, o)
   1.0.4
   增加对于Teal(lua的类型化方言)的支持，增加更多的init.lua配置选项，
   修复大量bug。增加公告功能、dex合并功能。
-  ]]
+  1.0.5
+  修复bug，项目可以添加jar库了，加强帮助选项的内容。修复一系列bug，
+  并且解决原来无法给项目添加ZAndrolua+本身没有的权限的问题。]]
   if o == "" then
     File("/sdcard/AndroLua/xaplug").mkdir()
     title = "欢迎使用ZAndroLua+ " .. n
@@ -377,9 +393,6 @@ m = {
       title = "设置",
       id = "more_setting", },
     { MenuItem,
-      title = "Android API相关内容",
-      id = "more_AndAPIdoc", },
-    { MenuItem,
       title = "帮助",
       id = "more_help", },
     { MenuItem,
@@ -563,7 +576,7 @@ function read(path)
     write(luaproj, string.format("luaproject=%q", luaproject))
     --Toast.makeText(activity, "打开工程."..p.appname, Toast.LENGTH_SHORT ).show()
    else
-    activity.setTitle("AndroLua+")
+    activity.setTitle("ZAndroLua+")
     luaproject = nil
     write(luaproj, "luaproject=nil")
     --Toast.makeText(activity, "打开文件."..path, Toast.LENGTH_SHORT ).show()
@@ -742,7 +755,8 @@ BitFileSuffix={
   ["mp4"]=true,
   ["mp3"]=true,
   ["tl"]=true,
-  ["xacf"]=true
+  ["xacf"]=true,
+  ["jar"]=true
 }
 
 
@@ -1004,6 +1018,7 @@ func.open = function()
   end
 
 end
+
 func.new = function()
   save()
   create_create_dlg()
@@ -1113,9 +1128,7 @@ end
 
 func.save = function()
   save()
-
   --- Toast.makeText(activity, "文件已保存." .. luapath, Toast.LENGTH_SHORT ).show()
-
 end
 
 func.play = function()
@@ -1178,7 +1191,6 @@ func.navi = function()
   local fs = {}
   indexs = {}
 
-
   for si,sg,s in string.gfind(str,"([%w%._]* *=? *function *[%w%._]*%b())()")
     table.insert(fs,"Function: "..s)
     table.insert(indexs,si-1)
@@ -1192,12 +1204,12 @@ end
 func.seach = function()
   editor.search()
 end
+
 func.xacfExport=function()
   xacfExports(luadir)
 end
 func.gotoline = function()
   editor.gotoLine()
-
 end
 
 func.luac = function()
@@ -1219,25 +1231,16 @@ func.build = function()
   if xaplugClick.build~=nil
     xaplugClick.build(luaproject)
     --插件打包事件
-
-
-
   end
-
-
 
   save()
 
-  if not luaproject then
-
+  if luaproject then
+    console.bin(luaproject .. "/")
+   else
     Toast.makeText(activity, "仅支持工程打包.", Toast.LENGTH_SHORT ).show()
     return
-   else
-    console.bin(luaproject .. "/")
   end
-
-
-
 
 end
 
@@ -1259,12 +1262,8 @@ func.info = function()
   activity.newActivity("projectinfo", { luaproject })
 end
 
-
 func.logcat = function()
   activity.newActivity("logcat")
-end
-func.AndAPIdoc = function()
-  activity.newActivity("AndAPIdoc")
 end
 func.help = function()
   activity.newActivity("help")
@@ -1361,7 +1360,6 @@ function onMenuItemSelected(id, item)
     [optmenu.more_qq] = func.qq,
     [optmenu.more_about] = func.about,
     [optmenu.plugin] = func.plugin,
-    [optmenu.more_AndAPIdoc]=func.AndAPIdoc,
     [optmenu.more_gits]=func.gitWebsite,
     [optmenu.more_apke]=func.apke,
     [optmenu.more_setting]=func.settingEditor,
@@ -1719,6 +1717,8 @@ function create_create_dlg()
     }
   }))
 end
+
+create_create_dlg()
 
 function create_project_dlg()
   if project_dlg then

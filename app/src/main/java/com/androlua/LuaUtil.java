@@ -41,6 +41,7 @@ import dalvik.system.DexFile;
 
 import static java.io.File.separator;
 import android.text.*;
+import android.app.AlertDialog;
 
 public class LuaUtil {
     /**
@@ -98,14 +99,25 @@ public class LuaUtil {
 
     //读取asset文件
 
-    public static byte[] readAsset(Context context, String name) throws IOException {
+	public static byte[] readAsset(Context context, String name) throws IOException {
+		return readAsset(context, name, true);
+	}
+
+    public static byte[] readAsset(Context context, String name, boolean isclose) throws IOException {
         AssetManager am = context.getAssets();
         InputStream is = am.open(name);
         byte[] ret = readAll(is);
-        is.close();
+
+		if (isclose) {
+			is.close();
+		}
         //am.close();
         return ret;
-    }
+	}
+
+	public static String readString(String file) throws IOException {
+		return new String(readAll(new FileInputStream(new File(file))));
+	}
 
     public static byte[] readAll(InputStream input) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream(4096);
@@ -137,11 +149,9 @@ public class LuaUtil {
     }
 
     public static void copyFile(String from, String to) {
-
         try {
             copyFile(new FileInputStream(from), new FileOutputStream(to));
         } catch (IOException e) {
-
         }
     }
 
@@ -177,7 +187,7 @@ public class LuaUtil {
         return copyDir(new File(from), new File(to));
     }
 
-    public static boolean copyDir(File from, File to) {
+    public static boolean copyDir(File from, File to){
         boolean ret = true;
         File p = to.getParentFile();
         if (!p.exists())
@@ -213,6 +223,10 @@ public class LuaUtil {
         return dir.delete();
     }
 
+	public static boolean rmDir(String dirName) {
+		return rmDir(new File(dirName));
+	}
+
     public static void rmDir(File dir, String ext) {
         if (dir.isDirectory()) {
             File[] fs = dir.listFiles();
@@ -231,8 +245,7 @@ public class LuaUtil {
         return readAll(is);
     }
 
-// 计算文件的 MD5 值
-
+    // 计算文件的 MD5 值
     public static String getFileMD5(String file) {
         return getFileMD5(new File(file));
     }
@@ -245,7 +258,11 @@ public class LuaUtil {
         }
     }
 
-    public static String getFileMD5(InputStream in) {
+	public static String getFileMD5(InputStream in) {
+		return getFileMD5(in, true);
+	}
+
+    public static String getFileMD5(InputStream in, boolean isClose) {
         byte buffer[] = new byte[4096];
         int len;
         try {
@@ -260,7 +277,9 @@ public class LuaUtil {
             return null;
         } finally {
             try {
-                in.close();
+				if (isClose) {
+					in.close();
+				}
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -281,7 +300,11 @@ public class LuaUtil {
         }
     }
 
-    public static String getFileSha1(InputStream in) {
+	public static String getFileSha1(InputStream in) {
+		return getFileSha1(in, true);
+	}
+
+    public static String getFileSha1(InputStream in, boolean isclose) {
         byte buffer[] = new byte[4096];
         int len;
         try {
@@ -296,7 +319,9 @@ public class LuaUtil {
             return null;
         } finally {
             try {
-                in.close();
+				if (isclose) {
+					in.close();
+				}
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -851,7 +876,6 @@ public class LuaUtil {
         }
         return result;
     }
-
 
     /*public static void createImage(int width, int height, int ints[][], String name) throws IOException {
      BufferedImage bi = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);

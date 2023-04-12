@@ -52,12 +52,12 @@
       };
       {
         TextView;
-        text="SDK";
+        text="MinSDK";
       };
       {
         EditText;
         layout_width="fill";
-        id="appsdk";
+        id="appMinSdk";
         singleLine="true";
         InputType="numberDecimal";
       };

@@ -26,6 +26,16 @@ local function _format()
   end
 end
 
+local function formatstr(s,...)
+  local rs=s
+  local arg={...}
+
+  for i=1,#arg
+    rs=string.gsub(rs,"%%q",arg[i],1)
+  end
+
+  return rs
+end
 
 function format(Text)
   local t=os.clock()
@@ -50,7 +60,7 @@ function build(path)
       f=io.open(path,'wb')
       f:write(str)
       f:close()
-      return path
+      return path,nil,true
      else
       os.remove(path)
       return nil,str
@@ -59,14 +69,15 @@ function build(path)
 end
 
 
-function build_tl(path2,name,dir,isluac)
+function build_tl(path2,name,dir,isluac,TypeDescribePath)
 
   package.path=path2.."?.lua;"
-  package.path=package.path..activity.getLuaLibPath().."/TealTypeModel/?.lua;"
-
+  package.path=package.path..tostring(activity.getFilesDir()).."/TealTypeModel/?.lua;"
+  package.path=package.path..table.concat(TypeDescribePath or {},";")
 
   local names=string.gsub(name,"tl$","lua")
   local path=string.gsub(path2,"tl$","lua")
+  local addStr=[[require("luajava")]]
 
   if(io.open(path))
     return nil,string.format("Teal (tl) files and Lua files cannot exist with the same name. ErroFile:%q,%q",name,names),""
@@ -77,7 +88,7 @@ function build_tl(path2,name,dir,isluac)
   local str=f:read("*a")
   f:close()
 
-  local GenCode,CompileMassage=tl.gen(str)
+  local GenCode,CompileMassage=tl.gen(addStr..str)
 
   local ErrorMsg=""
   local warnings=""
@@ -85,13 +96,12 @@ function build_tl(path2,name,dir,isluac)
 
   for k,v in ipairs(CompileMassage.syntax_errors)
     isErr=true
-    ErrorMsg=ErrorMsg..string.format("Line %q,Char %q: %q",v.y,v.x,v.msg).."\n"
+    ErrorMsg=ErrorMsg..formatstr("Line %q,Char %q: %q",v.y,v.x,v.msg).."\n"
   end
-
 
   for k,v in ipairs(CompileMassage.type_errors)
     isErr=true
-    ErrorMsg=ErrorMsg..string.format("Line %q,Char %q: %q",v.y,v.x,v.msg).."\n"
+    ErrorMsg=ErrorMsg..formatstr("Line %q,Char %q: %q",v.y,v.x,v.msg).."\n"
   end
 
   if(isErr)
@@ -99,29 +109,24 @@ function build_tl(path2,name,dir,isluac)
   end
 
   for k,v in ipairs(CompileMassage.warnings)
-    warnings=warnings..string.format("Line %q,Char %q,tag %q: %q",v.y,v.x,v.tag,v.msg).."\n"
+    warnings=warnings..formatstr("Line %q,Char %q,tag %q: %q",v.y,v.x,v.tag,v.msg).."\n"
   end
 
 
-  if((isluac))
-    if path then
+  if(isluac)
+    local str,st=loadstring(GenCode)
 
+    if st then
+      return nil,st,GenCode,warnings
+    end
 
-      local str,st=loadstring(GenCode)
+    local st,str=pcall(string.dump,str,true)
 
-      if st then
-        return nil,st,GenCode,warnings
-      end
-
-      local st,str=pcall(string.dump,str,true)
-
-      if st then
-        io.open(path,'wb'):write(str):close()
-        return names,nil,GenCode,warnings
-       else
-        return nil,str,GenCode,warnings
-      end
-
+    if st then
+      io.open(path,'wb'):write(str):close()
+      return names,nil,GenCode,warnings
+     else
+      return nil,str,GenCode,warnings
     end
 
    else

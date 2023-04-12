@@ -15,7 +15,6 @@ import "java.io.File"
 import "http"
 
 git_set_btn_onclick,luapths,luadirs,luapojcts=...
-LualibDir="/data/user/0/"..activity.getPackageName().."/app_lua/"
 activity.setTheme(android.R.style.Theme_DeviceDefault_Light)
 activity.setContentView("xagui/se")
 
@@ -83,7 +82,7 @@ Downloadlayout={
 
 xaset=activity.getSharedPreferences("xasetfil", Context.MODE_PRIVATE)
 sped = xaset.edit()
-xaLlibFilelist=luajava.astable(File("/data/user/0/"..activity.getPackageName().."/app_lua/").list())
+xaLlibFilelist=luajava.astable(File(activity.getLuaLibPath()).list())
 xaLlibNamelist={}
 
 for i,v in ipairs(xaLlibFilelist) do
@@ -129,7 +128,7 @@ function onCreateOptionsMenu(menu)
     .setIcon(android.R.drawable.ic_dialog_info)
     .setMessage([[恢复后，用户自定义的luaLib将被清除。]])
     .setNeutralButton("确认",function()
-      LuaUtil.copyDir("/data/user/0/"..activity.getPackageName().."/files/lua/",LualibDir)
+      LuaUtil.copyDir("/data/user/0/"..activity.getPackageName().."/files/lua/",activity.getLuaLibPath())
     end)
     .show()
   end
@@ -176,10 +175,10 @@ btn5.onClick=function()
   .setTitle("请输入目录")
   .setView(loadlayout(InputLayout))
   .setPositiveButton("将整个文件夹的内容添加到自带库",function()
-    LuaUtil.copyDir(edit.text,LualibDir)
+    LuaUtil.copyDir(edit.text,activity.getLuaLibPath())
   end)
   .setNegativeButton("单个文件添加",function()
-    xalstd.File.Copy(edit.text,LualibDir)
+    xalstd.File.Copy(edit.text,activity.getLuaLibPath())
   end)
   .setNeutralButton("取消",nil)
   .show();
@@ -192,7 +191,7 @@ btn8.onClick=function()
   .setTitle("从网络下载luaIib")
   .setView(loadlayout(Downloadlayout))
   .setPositiveButton("下载",function(v)
-    http.download(linkedit.text,LualibDir..pathedit.text )
+    http.download(linkedit.text,activity.getLuaLibPath()..pathedit.text )
   end)
   .setNegativeButton("取消",nil)
   .show()
@@ -202,7 +201,7 @@ btn7.onClick=function(v)
   AlertDialog.Builder(this)
   .setTitle("是否确定")
   .setPositiveButton("确定",function(v)
-    LuaUtil.copyDir("/data/user/0/"..activity.getPackageName().."/files/lua/defaultMode/",
+    LuaUtil.copyDir(tostring(activity.getFilesDir()).."/defaultMode",
     "/storage/emulated/0/AndroLua/plugin/")
   end)
   .setNegativeButton("取消",nil)

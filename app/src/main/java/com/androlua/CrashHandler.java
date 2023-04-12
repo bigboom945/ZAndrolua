@@ -22,6 +22,8 @@ import android.graphics.*;
 import android.widget.*;
 import android.app.*;
 import java.io.ByteArrayOutputStream;
+import java.util.zip.ZipOutputStream;
+import java.io.FileInputStream;
 
 /**
  * UncaughtException处理类,当程序发生Uncaught异常的时候,有该类来接管程序,并记录发送错误报告.

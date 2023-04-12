@@ -6,7 +6,7 @@ import com.luajava.*;
 public class MainjavaTools
 {
 	public  static String  CopyrightOwner="ZAndrolua作者著佐权所有";
-	public static String  ZAndroluaVersion="1.0.4";
+	public static String  ZAndroluaVersion="1.0.5";
 
 
 	public static void   allthrow(Throwable excep)

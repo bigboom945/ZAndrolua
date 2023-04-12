@@ -51,7 +51,8 @@ function WhetherExistTXTFile(dirs)
   end
   return false;
 end
-local function callback(s)
+local function callback(s,err)
+  System.gc()
   LuaUtil.rmDir(File(activity.getLuaExtDir("bin/.temp")))
   bin_dlg.dismiss()
 
@@ -88,29 +89,36 @@ end
 
 local function binapk(luapath, apkpath)
   require "import"
-  compile "mao"
+  compile "AxmlEditor"
   compile "sign"
-  compile "dx-1.14"
+  compile "za-dx-1.14"
   import "console"
   import "java.util.zip.*"
   import "java.io.*"
   import "xml"
-  import "mao.util.*"
-  import "mao.res.*"
   import "apksigner.*"
   import "com.android.dx.merge.DexMerger"
   import "com.android.dx.merge.CollisionPolicy"
   import "com.android.dx.dex.file.DexFile"
   import "com.android.dx.dex.DexOptions"
+  import "com.android.dx.command.dexer.Main"
   import "com.android.dex.Dex"
   import "com.android.dx.command.dexer.DxContext"
   import "java.io.ByteArrayOutputStream"
   import "java.io.ByteArrayInputStream"
+  import "AxmlEditor.AxmlEditor"
   import "tl"
   local b = byte[65536]
   -----2 ^ 16
   local CompileWarnings=""
-
+  local BuildPath=luapath.."Build/"
+  local BuildJarFilePath=BuildPath.."JarFile/"
+  local ClassesDexData
+  local DefNotAddDir={
+    ["so/"]=true,
+    ["Build/"]=true,
+    ["BuildScript/"]=true
+  }
 
   local function copy(input, output)
     LuaUtil.copyFile(input, output)
@@ -122,7 +130,39 @@ local function binapk(luapath, apkpath)
       end]]
   end
 
+  local function find(tab,val)
 
+    for k,v in pairs(tab)
+      if(v==val)
+        return k
+      end
+    end
+
+    return nil
+  end
+
+  local function GenDex(dex,classs,libs)
+
+    local args=String({
+      --classes.dex文件输出路径
+      "--output="..dex,
+      --class文件存放路径
+      classs,
+      --如果使用了第三方jar请添加存放路径
+      libs
+    });
+
+    local arguments =Main.Arguments();
+    arguments.parse(args);
+    local code = Main.run(arguments);
+
+    if (code ~= 0)
+      return false;
+     else
+      return true;
+    end
+
+  end
 
   local function isalylibErr(path,name,dir)
 
@@ -185,11 +225,8 @@ local function binapk(luapath, apkpath)
   local fis = FileInputStream(zipFile);
   --local checksum = CheckedInputStream(fis, Adler32());
   local zis = ZipInputStream(BufferedInputStream(fis));
-
-  local fot = FileOutputStream(tmp)
   --local checksum2 = CheckedOutputStream(fot, Adler32());
-
-  local out = ZipOutputStream(BufferedOutputStream(fot))
+  local out = ZipOutputStream(BufferedOutputStream(FileOutputStream(tmp)))
   local f = File(luapath)
   local errbuffer = {}
   local replace = {}
@@ -281,29 +318,25 @@ local function binapk(luapath, apkpath)
 
   local function addDir(out, dir, f)
 
-    if dir=="so/"
-      return
-    end
-
-
-    if dir=="BuildScript/"
-      return
-    end
-
     if(NoAddDir[dir]~=nil)
       return
     end
 
+    if(DefNotAddDir[dir]~=nil)
+      return
+    end
 
     local entry = ZipEntry("assets/" .. dir)
     out.putNextEntry(entry)
     local ls = f.listFiles()
     for n = 0, #ls - 1 do
       local name = ls[n].getName()
-      if name==(".using") then
+      local RePa=dir..name
+
+      if name==".using" then
         checklib(luapath .. dir .. name)
-       elseif NotAddFile[name]~= nil then
-       elseif(isRemoveInitLua and name=="init.lua")
+       elseif NotAddFile[RePa]~= nil then
+       elseif(isRemoveInitLua and RePa=="init.lua")
         local path=luapath .. dir .. name
         if(debugmode)
           path=path.."c"
@@ -324,7 +357,7 @@ local function binapk(luapath, apkpath)
         --- elseif(no_pack_file_b[name])
        elseif name:find("%.lua$") then
         checklib(luapath .. dir .. name)
-        local path, err= islualibErr(luapath .. dir .. name,name,dir)
+        local path, err,isluac= islualibErr(luapath .. dir .. name,name,dir)
         if path then
           if replace["assets/" .. dir .. name] then
             table.insert(errbuffer, dir .. name .. "/.aly")
@@ -335,19 +368,27 @@ local function binapk(luapath, apkpath)
           replace["assets/" .. dir .. name] = true
           copy(FileInputStream(File(path)), out)
           table.insert(md5s, LuaUtil.getFileMD5(path))
-          os.remove(path)
+          if isluac
+            os.remove(path)
+          end
          else
           table.insert(errbuffer, err)
         end
 
+       elseif name:find("%.jar$") then
+        if(not find(JarList,RePa))
+          local entry = ZipEntry("assets/" .. dir .. name)
+          out.putNextEntry(entry)
+          replace["assets/" .. dir .. name] = true
+          copy(FileInputStream(ls[n]), out)
+          table.insert(md5s, LuaUtil.getFileMD5(ls[n]))
+        end
+
        elseif (name:find("%.tl$") and OpenTeal) then
 
-        if(not (Teal.TypeDescFile or {})[dir..name])
+        if(not (Teal.TypeDescFile or {})[RePa])
 
-          package.path=luapath ..dir.."?.lua;"
-          package.path=package.path..activity.getLuaLibPath().."/TealTypeModel/?.lua;"
-
-          local name2, err,GenCode,warnings= console.build_tl(luapath .. dir .. name,name,dir,not ((NotLuaCompile[dir..name] or NotLuaCompileAll)))
+          local name2, err,GenCode,warnings= console.build_tl(luapath .. dir .. name,name,dir,not ((NotLuaCompile[RePa] or NotLuaCompileAll)),Teal.TypeDescribePath)
 
           if(warnings)
             CompileWarnings=CompileWarnings..luapath .. dir ..name..":"..warnings.."\n"
@@ -365,19 +406,17 @@ local function binapk(luapath, apkpath)
 
             local entry = ZipEntry("assets/" .. dir .. name2)
             out.putNextEntry(entry)
-
             replace["assets/" .. dir .. name2] = true
             copy(FileInputStream(File(path)), out)
             table.insert(md5s, LuaUtil.getFileMD5(path))
             os.remove(path)
-
            else
             table.insert(errbuffer, err)
           end
         end
 
        elseif name:find("%.dex$") then
-        if(MergeDex[dir..name] or MergeDexAll)
+        if(MergeDex[RePa] or MergeDexAll)
           table.insert(MergeDexList,Dex(File(luapath..dir..name)))
          else
           local entry = ZipEntry("assets/" .. dir .. name)
@@ -393,7 +432,7 @@ local function binapk(luapath, apkpath)
 
         if path then
 
-          if (not (NotLuaCompile[dir..name] or NotLuaCompileAll))
+          if (not (NotLuaCompile[RePa] or NotLuaCompileAll))
             name = name:gsub("aly$", "lua")
           end
 
@@ -410,11 +449,17 @@ local function binapk(luapath, apkpath)
          else
           table.insert(errbuffer, err)
         end
-
        elseif ls[n].isDirectory() then
         addDir(out, dir .. name .. "/", ls[n])
        else
-        local entry = ZipEntry("assets/" .. dir .. name)
+        local entry
+
+        if CustomizeApkPath[RePa]
+          entry=ZipEntry(CustomizeApkPath[RePa])
+         else
+          entry=ZipEntry("assets/" .. dir .. name)
+        end
+
         out.putNextEntry(entry)
         replace["assets/" .. dir .. name] = true
         copy(FileInputStream(ls[n]), out)
@@ -424,11 +469,100 @@ local function binapk(luapath, apkpath)
   end
 
 
+  local function addJarFile(path,out)
+    if(File(path).exists())
+      local ls=File(path).listFiles()
+      for i=0,#ls-1 do
+        local name = ls[i].getName()
+        local path=tostring(ls[i])
+        if ls[i].isDirectory() then
+          addJarFile(path,out)
+         else
+          if not name:find("%.class$")
+            local RelativePath=string.sub(path,#BuildJarFilePath,-1)
+            if(not replace[RelativePath])
+              if not (string.sub(RelativePath,1,#"META-INF/")=="META-INF/")
+                out.putNextEntry(ZipEntry(RelativePath))
+                LuaUtil.copyFile(FileInputStream(ls[i]), out)
+                table.insert(md5s, LuaUtil.getFileMD5(path))
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+
+  local function findJar(out, dir, f)
+
+    if(NoAddDir[dir]~=nil)
+      return
+    end
+
+    if(DefNotAddDir[dir]~=nil)
+      return
+    end
+
+    local ls = f.listFiles()
+    for n = 0, #ls - 1 do
+      local name = ls[n].getName()
+      local RePa=dir..name
+
+      if ls[n].isDirectory() then
+        findJar(out, dir .. name .. "/", ls[n])
+       elseif name:find("%.jar$")
+        table.insert(JarList,RePa)
+      end
+    end
+  end
+
+  local function unJarFile(luapath,JarList)
+    for k,v in ipairs(JarList)
+      local vf=File(luapath ..v)
+      if vf.isFile()
+        local JarZip=ZipInputStream(FileInputStream(vf))
+        local entry=JarZip.getNextEntry()
+        while(entry)
+          local name=entry.getName()
+          local Files=File(BuildJarFilePath..name)
+
+          if(entry.isDirectory())
+
+            if(Files.isFile())
+              Files.delete()
+            end
+
+            Files.mkdirs();
+           else
+
+            if(Files.isDirectory())
+              LuaUtil.rmDir(Files)
+            end
+
+            File(Files.getParent()).mkdirs();
+            Files.createNewFile()
+
+            local FilesSteam=FileOutputStream(Files)
+            LuaUtil.copyFile(JarZip,FilesSteam)
+            FilesSteam.close()
+          end
+
+          luajava.clear(Files)
+          entry=JarZip.getNextEntry()
+        end
+        JarZip.close()
+        luajava.clear(vf)
+        else
+        table.insert(errbuffer,"not JarFile:"..v)
+      end
+    end
+  end
+
   this.update("正在编译...");
   if f.isDirectory() then
     require "permission"
     dofile(luapath .. "init.lua")
-
 
     if MainBuildScript~=nil and MainBuildScript~=""
       dofile(luapath..MainBuildScript..".lua")
@@ -476,22 +610,30 @@ local function binapk(luapath, apkpath)
       NotLuaLibCompileAll=false
     end
 
+    AddJar=AddJar or {}
+
+    if(AddJar=="All")
+      AddJarAll=true
+      AddJar={}
+     else
+      AddJarAll=false
+    end
 
     Teal=Teal or {}
+    CustomizeApkPath= CustomizeApkPath or {}
 
     MergeDexList={}
+    JarList=AddJar
+
     v2k(NoAddDir)
     v2k(NotLuaCompile)
     v2k(NotAddFile)
     v2k(MergeDex)
     v2k(NotLuaLibCompile)
     v2k(Teal.TypeDescFile or {})
-
-
-    if user_permission
-      for k, v in ipairs(user_permission) do
-        user_permission[v] = true
-      end
+    
+    if AddJarAll
+      findJar(out, "", f)
     end
 
     local ss, ee = pcall(addDir, out, "", f)
@@ -500,6 +642,12 @@ local function binapk(luapath, apkpath)
       table.insert(errbuffer, ee)
     end
 
+    if (#JarList>0)
+      this.update("UnJarFile...");
+      unJarFile(luapath,JarList)
+    end
+
+    addJarFile(BuildJarFilePath,out)
 
     local z1sf
     local z1s
@@ -510,20 +658,18 @@ local function binapk(luapath, apkpath)
       for k,v in ipairs(lpats)
         z1sf=File(luapath.."so/"..tostring(lpats[k]).."/")
         if z1sf.isDirectory()
+
           z1s=luajava.astable(z1sf.listFiles())
           for k2,v2 in ipairs(z1s)
             local welx = z1s[k2]
             local entry = ZipEntry("lib/"..tostring(lpats[k]).."/"..z1s[k2].getName())
-
             out.putNextEntry(entry)
             copy(FileInputStream(welx), out)
           end
+
         end
-
       end
-
     end
-
 
     local wel = File(luapath .. "icon.png")
     if wel.exists() then
@@ -539,6 +685,7 @@ local function binapk(luapath, apkpath)
       replace["res/drawable/welcome.png"] = true
       copy(FileInputStream(wel), out)
     end
+
    else
     return "error"
   end
@@ -570,6 +717,18 @@ local function binapk(luapath, apkpath)
     end
   end
 
+  function handlePermissionTable(t)
+    local check = {};
+    local n = {};
+    for key , value in pairs(t) do
+      if not check[value] then
+        n[key] = "android.permission."..value
+        check[value] = value
+      end
+    end
+    return n
+  end
+
   function touint32(i)
     local code = string.format("%08x", i)
     local uint = {}
@@ -590,57 +749,29 @@ local function binapk(luapath, apkpath)
      elseif name:find("^assets/") then
      elseif name:find("^lua/") then
      elseif name:find("META%-INF") then
-     elseif (name=="classes.dex") and ((#MergeDexList)>0) then
-      table.insert(MergeDexList,Dex(LuaUtil.readAll(zis)))
+     elseif name=="classes.dex" then
+      ClassesDexData=LuaUtil.readAll(zis)
      else
       local entry = ZipEntry(name)
       out.putNextEntry(entry)
       if entry.getName() == "AndroidManifest.xml" then
+        local xml=AxmlEditor(zis)
+
         if path_pattern and #path_pattern > 1 then
           path_pattern = ".*\\\\." .. path_pattern:match("%w+$")
+          xml.setPathPattern("com.androlua.Main",path_pattern)
         end
-        local list = ArrayList()
-        local xmls = AXmlDecoder.read(list, zis)
 
-        local req = {
-          [activity.getPackageName()] = packagename,
-          [info.nonLocalizedLabel] = appname,
-          [ver] = appver,
-          [".*\\\\.alp"] = path_pattern or "",
-          [".*\\\\.lua"] = "",
-          [".*\\\\.luac"] = "",
-        }
-        for n = 0, list.size() - 1 do
-          local v = list.get(n)
-          if req[v] then
-            list.set(n, req[v])
-           elseif user_permission then
-            local p = v:match("%.permission%.([%w_]+)$")
-            if p and (not user_permission[p]) then
-              list.set(n, "")
-            end
-          end
-        end
-        local pt =activity.getLuaPath(".tmp")
 
-        local fo = FileOutputStream(pt)
-        xmls.write(list, fo)
-        local code = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionCode
-        fo.close()
-        local f = io.open(pt)
-        local s = f:read("a")
-        f:close()
-        s = string.gsub(s, touint32(code), touint32(tointeger(appcode) or 1),1)
-        s = string.gsub(s, touint32(18), touint32(tointeger(appsdk) or 18),1)
-        s = string.gsub(s, touint32(23), touint32(tointeger(appSdk_target) or 23),1)
-        local f = io.open(pt, "w")
-        f:write(s)
-        f:close()
-
-        local fi = FileInputStream(pt)
-        copy(fi, out)
-        os.remove(pt)
-
+        xml.setUsePermissions(String(handlePermissionTable(user_permission)))
+        xml.setAppName(appname)
+        xml.setMinimumSdk(int(tointeger(appsdk) or 18))
+        xml.setTargetSdk(int(tointeger(appSdk_target) or 23))
+        xml.setPackageName(packagename)
+        xml.setVersionCode(int(tointeger(appcode)))
+        xml.setVersionName(appver or "1.0")
+        xml.commit()
+        xml.writeTo(out)
        elseif not entry.isDirectory() then
         copy2(zis, out)
       end
@@ -649,10 +780,20 @@ local function binapk(luapath, apkpath)
     entry = zis.getNextEntry()
   end
 
+  this.update("构建Classes.dex...");
+
+  table.insert(MergeDexList,Dex(ClassesDexData))
+
+  if(#JarList>0)
+    GenDex(BuildPath.."ClassDex.dex",BuildJarFilePath)
+    if(File(BuildPath.."ClassDex.dex").exists())
+      table.insert(MergeDexList,Dex(File(BuildPath.."ClassDex.dex")))
+    end
+  end
 
   if((#MergeDexList)>0)
     local dexc=DxContext()
-    local dexs=DexMerger(Dex(MergeDexList),CollisionPolicy.FAIL,dexc).merge();
+    local dexs=DexMerger(Dex(MergeDexList),CollisionPolicy.KEEP_FIRST,dexc).merge();
     local entry = ZipEntry("classes.dex")
     out.putNextEntry(entry)
     dexs.writeTo(out)
@@ -668,7 +809,6 @@ local function binapk(luapath, apkpath)
 
   if #errbuffer == 0 then
     this.update("正在签名...");
-
     os.remove(apkpath)
     Signer.sign(tmp, apkpath)
     activity.installApk(apkpath)
@@ -688,7 +828,7 @@ local function binapk(luapath, apkpath)
     return "打包成功:"..apkpath.."\n编译信息:"..CompileWarnings
    else
     os.remove(tmp)
-    return "打包出错:\n " .. table.concat(errbuffer, "\n").."\nTealWarnings:\n"..CompileWarnings
+    return "打包出错:\n " .. table.concat(errbuffer, "\n").."\nTealWarnings:\n"..CompileWarnings,table.concat(errbuffer, "\n")
   end
 
 end
@@ -706,7 +846,6 @@ local function bin(path)
    else
     Toast.makeText(activity, "工程配置文件错误." .. s, Toast.LENGTH_SHORT).show()
   end
-  System.gc()
 end
 
 --bin(activity.getLuaExtDir("project/demo").."/")

@@ -33,12 +33,11 @@ if (pcall(loadfile(luaproject, "bt", app)))==false
   .show()
   return
 end
-appname.Text=app.appname or "AndroLua"
+appname.Text=app.appname or "AndroluaProject"
 appTargetSdk.Text=app.appSdk_target or ""
 appcode.Text=app.appcode or "1"
-appsdk.Text=app.appsdk or "15"
-path_pattern.Text=app.path_pattern or ""
-packagename.Text=app.packagename or "com.androlua"
+appMinSdk.Text=app.appsdk or "15"
+packagename.Text=app.packagename or "com.androlua.app"
 developer.Text=app.developer or ""
 description.Text=app.description or ""
 debugmode.Checked=app.debugmode==nil or app.debugmode
@@ -46,14 +45,18 @@ app_key.Text=app.app_key or ""
 app_channel.Text=app.app_channel or ""
 appver.Text=app.appver or "1.0"
 appmbs.Text=app.MainBuildScript or ""
+path_pattern.Text=app.path_pattern or ""
 plist.ChoiceMode=ListView.CHOICE_MODE_MULTIPLE;
 isRemoveInitLua=app.isRemoveInitLua
 NotAddFile=app.NotAddFile or {}
-NotCompile=app.NotCompile or {}
+NotLuaCompile=app.NotLuaCompile or {}
 NoAddDir=app.NoAddDir or {}
+MergeDex=app.MergeDex or {}
+CustomizeApkPath=app.CustomizeApkPath or {}
 OpenTeal=app.OpenTeal
-pss={}
 Teal=app.Teal or {}
+AddJar=app.AddJar or {}
+pss={}
 ps={}
 
 for k,v in pairs(permission_info) do
@@ -104,8 +107,8 @@ local template=[[
 appname="%s"
 appver="%s"
 appcode="%s"
-appsdk="%s"
 path_pattern="%s"
+appsdk="%s"
 packagename="%s"
 theme="%s"
 app_key="%s"
@@ -117,15 +120,21 @@ MainBuildScript=%s
 debugmode=%s
 isRemoveInitLua=%s
 NotAddFile={%s}
-NotCompile={%s}
+NotLuaCompile=%s
 NoAddDir={%s}
+MergeDex=%s
 OpenTeal=%s
+AddJar=%s
 
 user_permission={
   %s
 }
 
 Teal={
+  %s
+}
+
+CustomizeApkPath={
   %s
 }
 ]]
@@ -224,7 +233,14 @@ local function dump(t)
   return table.concat(t,",\n  ")
 end
 
+local function HandleStrDump(t)
 
+  if(type(t)=="string")
+    return dumpstr(t)
+  end
+
+  return "{"..dump(t,",\n  ").."}"
+end
 
 function onCreateOptionsMenu(menu)
   menu.add("保存").setShowAsAction(1)
@@ -248,8 +264,8 @@ function onOptionsItemSelected(item)
   appname.Text,
   appver.Text,
   appcode.Text,
-  appsdk.Text,
   path_pattern.Text,
+  appMinSdk.Text,
   packagename.Text,
   thm,
   app_key.Text,
@@ -261,11 +277,14 @@ function onOptionsItemSelected(item)
   debugmode.isChecked(),
   not not isRemoveInitLua,
   dump(NotAddFile),
-  dump(NotCompile),
+  HandleStrDump(NotLuaCompile),
   dump(NoAddDir),
+  HandleStrDump(MergeDex),
   not not OpenTeal,
+  HandleStrDump(AddJar),
   dump(rs),
-  dumpx(Teal,{"TypeDescFile"}))
+  dumpx(Teal,{"TypeDescFile"}),
+  dumpx(CustomizeApkPath))
 
   if app.NoaddDir~=nil
     ss=ss.."\nNoaddDir={"..dump(app.NoaddDir ).."}"

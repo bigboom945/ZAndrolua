@@ -14,8 +14,6 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -362,24 +360,22 @@ public class LuaResources extends Resources implements LuaMetaTable {
         return mSuperResources.getXml(id);
     }
 
-    @NonNull
     @Override
     public CharSequence getQuantityText(int id, int quantity) throws NotFoundException {
         return mSuperResources.getQuantityText(id, quantity);
     }
 
     @Override
-    public Drawable getDrawableForDensity(int id, int density, @Nullable Theme theme) {
+    public Drawable getDrawableForDensity(int id, int density,Theme theme) {
         return mSuperResources.getDrawableForDensity(id, density, theme);
     }
 
-    @NonNull
     @Override
     public String getQuantityString(int id, int quantity) throws NotFoundException {
         return mSuperResources.getQuantityString(id, quantity);
     }
 
-    @NonNull
+ 
     @Override
     public String getQuantityString(int id, int quantity, Object... formatArgs) throws NotFoundException {
         return mSuperResources.getQuantityString(id, quantity, formatArgs);
@@ -405,7 +401,6 @@ public class LuaResources extends Resources implements LuaMetaTable {
         return mSuperResources.obtainAttributes(set, attrs);
     }
 
-    @NonNull
     @Override
     public TypedArray obtainTypedArray(int id) throws NotFoundException {
         return mSuperResources.obtainTypedArray(id);

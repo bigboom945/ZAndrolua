@@ -115,7 +115,7 @@ function onVersionChanged(n, o)
   修复bug，项目可以添加jar库了，加强帮助选项的内容。修复一系列bug，
   并且解决原来无法给项目添加ZAndrolua+本身没有的权限的问题。
   1.0.6
-  添加模板功能，修复bug。
+  添加模板功能，修复bug。增加编译Java代码功能(打包时进行编译)。
   ]]
   if o == "" then
     File("/sdcard/AndroLua/xaplug").mkdir()

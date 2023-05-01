@@ -13,6 +13,7 @@ import android.widget.EditText;
 
 import java.io.File;
 import java.util.HashMap;
+import android.graphics.Color;
 
 /**
  * Created by Administrator on 2017/02/14 0014.

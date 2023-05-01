@@ -10,20 +10,21 @@ import "android.content.Context"
 import "android.view.Gravity"
 import "android.widget.LinearLayout"
 import "android.app.AlertDialog"
+CodePath=LuaActivityShare.getData("CodePaths")
+pluginPath=CodePath.."xaplug/"
 
 xaplugControls={}
-
 xaplugControls.xaplugControl=function()
-  xpalugList=luajava.astable(File("/storage/emulated/0/AndroLua/xaplug").listFiles())
+  xpalugList=luajava.astable(File(CodePath.."xaplug").listFiles())
   xpalugNameList={}
   xpalugNameMapping={}
 
   for k=1,#xpalugList,1
 
     if xpalugList[k].isDirectory()==true
-      dofile("/storage/emulated/0/AndroLua/xaplug/"..xpalugList[k].getName().."/info.lua")
+      dofile(pluginPath..xpalugList[k].getName().."/info.lua")
       xpalugNameList[#xpalugNameList+1]=app_infos
-      xpalugNameMapping[#xpalugNameList]="/storage/emulated/0/AndroLua/xaplug/"..xpalugList[k].getName()
+      xpalugNameMapping[#xpalugNameList]=pluginPath..xpalugList[k].getName()
     end
   end
 

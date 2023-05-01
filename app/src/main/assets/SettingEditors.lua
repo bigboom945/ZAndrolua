@@ -13,11 +13,10 @@ import "android.net.Uri"
 import "java.net.URLDecoder"
 import "java.io.File"
 import "http"
-
 git_set_btn_onclick,luapths,luadirs,luapojcts=...
 activity.setTheme(android.R.style.Theme_DeviceDefault_Light)
 activity.setContentView("xagui/se")
-
+CodePath=LuaActivityShare.getData("CodePaths")
 
 InputLayout={
   LinearLayout;
@@ -202,7 +201,7 @@ btn7.onClick=function(v)
   .setTitle("是否确定")
   .setPositiveButton("确定",function(v)
     LuaUtil.copyDir(tostring(activity.getFilesDir()).."/defaultMode",
-    "/storage/emulated/0/AndroLua/plugin/")
+    CodePath.."plugin/")
   end)
   .setNegativeButton("取消",nil)
   .show()

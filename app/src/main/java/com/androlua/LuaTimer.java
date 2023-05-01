@@ -6,12 +6,11 @@ import android.widget.TextView;
 import android.graphics.Paint;
 import android.app.AlertDialogBuilder;
 import java.io.File;
+import android.widget.PopupMenu;
 
 public class LuaTimer extends TimerX implements LuaGcable
 {
-
 	private boolean mGc;
-
 	@Override
 	public void gc() {
 		// TODO: Implement this method
@@ -46,9 +45,7 @@ public class LuaTimer extends TimerX implements LuaGcable
 		super("LuaTimer");
 		main.regGc(this);
 		task= new LuaTimerTask(main, func, arg);
-        
 	}
-	
 	public void start(long delay, long period)
 	{
 		schedule(task,delay,period);

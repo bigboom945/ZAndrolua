@@ -128,7 +128,7 @@
       {
         EditText;
         layout_width="fill";
-        id="appmbs";
+        id="buildsScript";
         singleLine="true";
       };
       {

@@ -8,13 +8,13 @@ import android.os.AsyncTask;
 import android.util.*;
 import android.view.*;
 import android.widget.*;
+import android.widget.RadioGroup.*;
 import android.widget.TextView.*;
 
 import com.myopicmobile.textwarrior.android.*;
 import com.myopicmobile.textwarrior.common.*;
 
 import java.io.*;
-import android.view.WindowManager.LayoutParams;
 
 public class LuaEditor extends FreeScrollingTextField {
 
@@ -122,6 +122,7 @@ public class LuaEditor extends FreeScrollingTextField {
         Lexer.setLanguage(lang);
         respan();
         invalidate();
+
     }
 
     public void addPackage(String pkg, String[] names) {

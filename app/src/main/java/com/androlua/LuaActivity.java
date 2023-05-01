@@ -1,7 +1,6 @@
 package com.androlua;
 
 import java.io.File;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -24,9 +23,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
-
-import java.lang.AbstractMethodError;
-
 import android.os.Build;
 import android.os.Bundle;
 import android.opengl.EGLExt;
@@ -82,7 +78,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
 import dalvik.system.DexClassLoader;
 import dalvik.system.DexFile;
 import com.androlua.Z.*;
@@ -93,7 +88,7 @@ import android.widget.*;
 import android.text.*;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageInfo;
-
+import java.net.ResponseCache;
 public class LuaActivity extends Activity implements LuaBroadcastReceiver.OnReceiveListener, LuaContext {
     private final static String ARG = "arg";
     private final static String DATA = "data";

@@ -33,6 +33,8 @@ if (pcall(loadfile(luaproject, "bt", app)))==false
   .show()
   return
 end
+OpenJava= not not app.OpenJava
+Java=app.Java or {}
 appname.Text=app.appname or "AndroluaProject"
 appTargetSdk.Text=app.appSdk_target or ""
 appcode.Text=app.appcode or "1"
@@ -44,7 +46,7 @@ debugmode.Checked=app.debugmode==nil or app.debugmode
 app_key.Text=app.app_key or ""
 app_channel.Text=app.app_channel or ""
 appver.Text=app.appver or "1.0"
-appmbs.Text=app.MainBuildScript or ""
+buildsScript.Text=app.BuildScript or ""
 path_pattern.Text=app.path_pattern or ""
 plist.ChoiceMode=ListView.CHOICE_MODE_MULTIPLE;
 isRemoveInitLua=app.isRemoveInitLua
@@ -116,7 +118,7 @@ appSdk_target="%s"
 app_channel="%s"
 developer="%s"
 description="%s"
-MainBuildScript=%s
+BuildScript="%s"
 debugmode=%s
 isRemoveInitLua=%s
 NotAddFile={%s}
@@ -125,6 +127,11 @@ NoAddDir={%s}
 MergeDex=%s
 OpenTeal=%s
 AddJar=%s
+OpenJava=%s
+Java=
+{
+ %s
+}
 
 user_permission={
   %s
@@ -273,7 +280,7 @@ function onOptionsItemSelected(item)
   app_channel.Text,
   developer.Text,
   description.Text,
-  [["]]..appmbs.Text..[["]],
+  buildsScript.Text,
   debugmode.isChecked(),
   not not isRemoveInitLua,
   dump(NotAddFile),
@@ -282,6 +289,8 @@ function onOptionsItemSelected(item)
   HandleStrDump(MergeDex),
   not not OpenTeal,
   HandleStrDump(AddJar),
+  OpenJava,
+  dumpx(Java,{"JavaSrc","Version"}),
   dump(rs),
   dumpx(Teal,{"TypeDescFile"}),
   dumpx(CustomizeApkPath))

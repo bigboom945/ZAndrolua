@@ -27,6 +27,9 @@ public class LuaActivityShare {
 
 	public static Object getData(int key) {
 		return Data.get(key);
-
 	}
+    
+    public static void Clear(){
+        Data.clear();
+    }
 }

@@ -5,13 +5,11 @@ import "android.widget.*"
 import "android.view.*"
 import "com.myopicmobile.textwarrior.common.*"
 import "android.content.*"
-import "layout"
+import "autotheme"
 classes=require "android"
 activity.setTitle('需要导入的类')
-import "autotheme"
 activity.setTheme(autotheme())
-activity.setContentView(loadlayout(layout))
-
+activity.setContentView(loadlayout("layout"))
 
 function fiximport(path)
   require "import"
@@ -34,7 +32,7 @@ function fiximport(path)
     f:close()
     if not str then
       return
-      end
+    end
     for s,e,t in str:gfind("(import \"[%w%.]+%*\")") do
       --local p=package.searchpath(t,searchpath)
       --print(t,p)
@@ -85,7 +83,7 @@ dir,path=...
 list=ListView(activity)
 list.ChoiceMode=ListView.CHOICE_MODE_MULTIPLE;
 task(fiximport,path,function(v)
-    rs=v
+  rs=v
   adp=ArrayListAdapter(activity,android.R.layout.simple_list_item_multiple_choice,v)
   list.Adapter=adp
   activity.setContentView(list)
@@ -114,7 +112,7 @@ function onOptionsItemSelected(item)
     local cd = ClipData.newPlainText("label", str)
     cm.setPrimaryClip(cd)
     Toast.makeText(activity,"已复制的剪切板",1000).show()
-  else
+   else
     for n=0,#rs-1 do
       list.setItemChecked(n,not list.isItemChecked(n))
     end

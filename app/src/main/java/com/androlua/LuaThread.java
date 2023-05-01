@@ -29,10 +29,9 @@ public class LuaThread extends Thread implements Runnable,LuaMetaTable,LuaGcable
 
 	@Override
 	public boolean isGc() {
-		return mGc;
+        return mGc;
 	}
-
-
+    
 	@Override
 	public Object __call(Object[] arg) {
 		// TODO: Implement this method

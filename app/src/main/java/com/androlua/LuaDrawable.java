@@ -4,6 +4,8 @@ import android.graphics.drawable.*;
 import android.graphics.*;
 
 import com.luajava.*;
+import android.opengl.GLSurfaceView;
+import android.view.SurfaceView;
 
 public class LuaDrawable extends Drawable {
 

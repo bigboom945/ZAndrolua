@@ -1465,6 +1465,7 @@ import "android.os.*"
 import "android.widget.*"
 import "android.view.*"
 import "android.graphics.*"
+import "java.util.concurrent.ConcurrentHashMap"
 activity.setTitle('AndLua+')
 activity.setContentView({
   LinearLayout;
@@ -1477,32 +1478,92 @@ activity.setContentView({
   };
 })
 
+
 holder=sureface.getHolder()
 holder.addCallback(SurfaceHolder.Callback({
   surfaceChanged=function(holder,format,width,height)
+
   end,
   surfaceCreated=function(holder)
     DrawThreadData.isRun=true
+    DrawThreadData.width=activity.getWidth()
+    DrawThreadData.height=activity.getHeight()
   end,
   surfaceDestroyed=function(holder)
     DrawThreadData.isRun=false
+    DrawThreadData.StartTime=0
   end
 }))
 
-DrawThreadData=HashMap()
+
+DrawThreadData=ConcurrentHashMap()
 DrawThread=LuaThread(activity,function(holder,DrawThreadData)
   require "import"
   import "android.graphics.PorterDuff"
   import "android.graphics.Paint"
+  import "android.graphics.Color"
+
+  function newTextConf(TextSize)
+    local ret={Paint=Paint(),Gravity="center"}
+
+    if TextSize
+      ret.Paint.setTextSize(TextSize)
+     else
+      ret.Paint.setTextSize(50)
+    end
+
+    return ret
+  end
+
+  function isTouch(left,top,right,bottom,x,y)
+    return (x>left) and (x<right) and (y<top)and(y>bottom)
+  end
+
+  function Texts(left,top,right,bottom,text,TextConf)
+    local TextConf=TextConf;
+    local width=right-left
+    local height=bottom-top
+
+    if TextConf
+      TextConfs=TextConf
+     else
+      TextConfs=newTextConf()
+    end
+
+    local fontMetrics=TextConfs.Paint.getFontMetrics()
+
+    if TextConfs.Gravity=="start"
+      ca.drawText(text,right,bottom+-(fontMetrics.top),TextConfs.Paint)
+     elseif TextConfs.Gravity=="center"
+      ca.drawText(text,left+((width-TextConfs.Paint.measureText(text))/2),bottom-((height-(fontMetrics.bottom - fontMetrics.top)-fontMetrics.top)/2),TextConfs.Paint)
+    end
+
+  end
+
+  function View(left,top,right,bottom,paint,text,TextConf)
+    ca.drawRect(left,top,right,bottom,paint);
+
+    if text
+      Texts(left,top,right,bottom,text,TextConf)
+    end
+
+    if DrawThreadData.isOnTouch
+      return isTouch(left,top,right,bottom,DrawThreadData.OnTouchX,DrawThreadData.OnTouchY)
+      end
+  end
+
+
   pa=Paint()
   pa2=Paint()
   pa3=Paint()
+  pa4 = Paint();
   GridSize=50
   pa3.setColor(0xFFFFFFFF)
   pa.setTextSize(50)
   pa.setColor(0xFF000000)
   pa2.setStrokeWidth(3)
   pa2.setColor(0xFFAAAAAA)
+  pa4.setColor(0xFFFFFFFF)
   nullTable={}
   speed=100
   dataTable={
@@ -1548,7 +1609,7 @@ DrawThread=LuaThread(activity,function(holder,DrawThreadData)
         if val<2
           copytable[k][k2]=0
         end
-        
+
       end
     end
     dataTable=copytable
@@ -1560,10 +1621,13 @@ DrawThread=LuaThread(activity,function(holder,DrawThreadData)
     for k=1,#dataTable
       for k2=1,#dataTable[k]
         vs=dataTable[k][k2]
+
         if vs==1
           ca.drawRect((k2-1)*GridSize,(k-1)*GridSize,k2*GridSize,k*GridSize,pa);
          else
+
         end
+
       end
     end
 
@@ -1584,26 +1648,47 @@ DrawThread=LuaThread(activity,function(holder,DrawThreadData)
     end
   end
 
-  StartTime=System.currentTimeMillis();
+  Speed=100
+  DrawThreadData.StartTime=System.currentTimeMillis();
 
   while(true)
     if DrawThreadData.isRun
       ca=holder.lockCanvas()
       if (ca~=nil) then
         ca.drawRGB(255,255,255);
-        
-        if System.currentTimeMillis()>StartTime+100
+
+        if(System.currentTimeMillis()>DrawThreadData.StartTime+Speed)
           RefreshGame()
-          StartTime=System.currentTimeMillis();
+          DrawThreadData.StartTime=System.currentTimeMillis();
         end
-      
+
         DrawData(ca)
+        Texts(400,0,0,80,"每"..Speed.."s一回合",nil)
+
+        isOnTouch=View(0,DrawThreadData.height-100,DrawThreadData.width/2,DrawThreadData.height-300,pa4,"减速")
+        isOnTouch2=View(DrawThreadData.width/2,DrawThreadData.height-100,DrawThreadData.width,DrawThreadData.height-300,pa4,"加速")
         holder.unlockCanvasAndPost(ca)
+
+        if isOnTouch
+          Speed=Speed+1
+        end
+
+        if isOnTouch2
+          Speed=Speed-1
+        end
+
+        DrawThreadData.isOnTouch=false
       end
     end
   end
 
-end,{holder,DrawThreadData}).start()@
+end,{holder,DrawThreadData}).start()
+
+sureface.OnTouchListener=function(v,event)
+  DrawThreadData.OnTouchX=event.getX()
+  DrawThreadData.OnTouchY=event.getY()
+  DrawThreadData.isOnTouch=true
+end@
 @调用手机拨打电话API@
 @import "android.net.Uri"
 import "android.content.Intent"
@@ -2639,3 +2724,154 @@ xapluglib.setSaveClick(<要保存的文件全路径>)
 xapluglib.setRunClick(<运行的文件路径,当前打开项目>)
 设置运行文件时执行函数。
 @
+@ProgressDialog加载框@
+@--ProgressDialog__进度条对话框
+
+dialog = ProgressDialog.show(this, "提示", "正在登陆中").hide()
+--最简单便捷的方式
+
+dialog2 = ProgressDialog.show(this, "提示", "正在登陆中", false).hide()
+--最后一个boolean设置是否是不明确的状态
+
+dialog3 = ProgressDialog.show(this, "提示", "正在登陆中",false, true).hide()
+--最后一个boolean设置可以不可以点击取消
+
+dialog4 = ProgressDialog.show(this, "提示", "正在登陆中",false, true, DialogInterface.OnCancelListener{
+  onCancel=function()
+    print("对话框取消")
+  end
+}).hide()
+
+--最后一个参数监听对话框取消，并执行事件
+
+
+
+
+
+--圆形旋转样式
+dialog5= ProgressDialog(this)
+dialog5.setProgressStyle(ProgressDialog.STYLE_SPINNER)
+dialog5.setTitle("Loading...")
+--设置进度条的形式为圆形转动的进度条
+dialog5.setMessage("ProgressDialog")
+dialog5.setCancelable(true)--设置是否可以通过点击Back键取消
+dialog5.setCanceledOnTouchOutside(false)--设置在点击Dialog外是否取消Dialog进度条
+dialog5.setOnCancelListener{
+  onCancel=function(l)
+    print("取消Dialog5")
+  end}
+--取消对话框监听事件
+dialog5.show().hide()
+
+
+
+
+
+--水平样式
+dialog6= ProgressDialog(this)
+dialog6.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+--设置进度条的形式为水平进度条
+dialog6.setTitle("ProgressDialog_HORIZONTAL")
+dialog6.setCancelable(true)--设置是否可以通过点击Back键取消
+dialog6.setCanceledOnTouchOutside(false)--设置在点击Dialog外是否取消Dialog进度条
+dialog6.setOnCancelListener{
+  onCancel=function(l)
+    print("取消Dialog6")
+  end}
+--取消对话框监听事件
+dialog6.setMax(100)
+--设置最大进度值
+dialog6.show().hide()
+
+function 增加(i)
+  dialog6.incrementProgressBy(10)
+  dialog6.incrementSecondaryProgressBy(10)
+  if i=="10" then
+    dialog6.dismiss()
+    print("加载完成")
+  end
+  --当进度走完时销毁对话框
+end
+function 加载()
+  require "import"
+  for i=1,10 do
+    Thread.sleep(300)
+    call("增加",tostring(i))
+  end
+end
+--thread(加载)@
+@剪贴板操作@
+@import "android.content.Context"
+--导入类
+
+Text=activity.getSystemService(Context.CLIPBOARD_SERVICE).getText()
+--获取剪贴板
+
+activity.getSystemService(Context.CLIPBOARD_SERVICE).setText(Text)
+--写入剪贴板@
+@使用线程类@
+@需导入import模块，参看thread,timer与task函数说明。
+线程中使用独立环境运行，不能使用外部变量与函数，需要使用参数和回调与外部交互。
+任务
+
+task(str,args,callback)
+
+str 为任务执行代码，args 为参数，callback 为回调函数，任务返回值将传递到回调方法
+线程
+
+t=thread(str,args)
+
+str 为线程中执行的代码，args 为初始传入参数
+调用线程中方法
+call(t,fn,args)
+t 为线程，fn 为方法名称，args 为参数
+设置线程变量
+set(t,fn,arg)
+t 为线程，fn 为变量名称，arg 为变量值
+线程调用主线程中方法
+call(fn,args)
+fn 为方法名称，args 为参数
+线程设置主线程变量
+set(fn,arg)
+fn 为变量名称，arg 为变量值
+
+注. 参数类型为 字符串，数值，Java对象，布尔值与nil
+线程要使用quit结束线程。
+
+t=timer(func,delay,period,args)
+
+func 为定时器执行的函数，delay 为定时器延时，period 为定时器间隔，args 为初始化参数
+t.Enable=false 暂停定时器
+t.Enable=true 启动定时器
+t.stop() 停止定时器
+
+注意：定时器函数定义run函数时定时器重复执行run函数，否则重复执行构建时的func函数@
+@http同步网络模块@
+@body,cookie,code,headers=http.get(url [,cookie,ua,header])
+body,cookie,code,headers=http.post(url ,postdata [,cookie,ua,header])
+code,headers=http.download(url [,cookie,ua,ref,header])
+body,cookie,code,headers=http.upload(url ,datas ,files [,cookie,ua,header])
+参数说明
+url 网址
+postdata post的字符串或字符串数据组表
+datas upload的字符串数据组表
+files upload的文件名数据表
+cookie 网页要求的cookie
+ua 浏览器识别
+ref 来源页网址
+header http请求头
+
+require "import"
+import "http"
+
+--get函数以get请求获取网页，参数为请求的网址与cookie
+body,cookie,code,headers=http.get("http://andlua.cn")
+
+--post函数以post请求获取网页，通常用于提交表单，参数为请求的网址，要发送的内容与cookie
+body,cookie,code,headers=http.post("http://andlua.cn/Login.Asp?Login=Login&Url=http://andlua.cn/bbs/index.asp","name=用户名&pass=密码&ki=1")
+
+--download函数和get函数类似，用于下载文件，参数为请求的网址，保存文件的路径与cookie
+http.download("http://andlua.cn","/sdcard/a.txt")
+
+--upload用于上传文件，参数是请求的网址，请求内容字符串部分，格式为以key=value形式的表，请求文件部分，格式为key=文件路径的表，最后一个参数为cookie
+http.upload("http://andlua.cn",{title="标题",msg="内容"},{file1="/sdcard/1.txt",file2="/sdcard/2.txt"})@

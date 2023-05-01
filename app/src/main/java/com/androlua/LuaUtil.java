@@ -36,12 +36,12 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-
-import dalvik.system.DexFile;
-
 import static java.io.File.separator;
 import android.text.*;
 import android.app.AlertDialog;
+import java.security.NoSuchAlgorithmException;
+import dalvik.system.DexFile;
+import com.luajava.LuaObject;
 
 public class LuaUtil {
     /**
@@ -112,6 +112,7 @@ public class LuaUtil {
 			is.close();
 		}
         //am.close();
+        
         return ret;
 	}
 
@@ -170,7 +171,10 @@ public class LuaUtil {
         }
         return true;
     }
-
+    
+    public static boolean WriteFile(String str, OutputStream out) {
+        return WriteFile(str.getBytes(),out);
+    }
 
     public static boolean WriteFile(byte[] buf , OutputStream out) {
         try {
@@ -187,7 +191,7 @@ public class LuaUtil {
         return copyDir(new File(from), new File(to));
     }
 
-    public static boolean copyDir(File from, File to){
+    public static boolean copyDir(File from, File to) {
         boolean ret = true;
         File p = to.getParentFile();
         if (!p.exists())
@@ -261,6 +265,19 @@ public class LuaUtil {
 	public static String getFileMD5(InputStream in) {
 		return getFileMD5(in, true);
 	}
+
+    public static String getStringMD5(String str) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("MD5");
+            digest.update(str.getBytes());
+            BigInteger bigInt = new BigInteger(1, digest.digest());
+            return bigInt.toString(16);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 
     public static String getFileMD5(InputStream in, boolean isClose) {
         byte buffer[] = new byte[4096];

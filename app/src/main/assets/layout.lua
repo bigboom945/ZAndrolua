@@ -5,7 +5,7 @@ layout={
     layout_height="fill",
     orientation="vertical";
     {
-      LuaEditor,
+      LuaEditorZ,
       id="editor",
       text= "",
       layout_width="fill",
@@ -118,6 +118,19 @@ layout={
         EditText,
         id="project_packageName",
         text="com.androlua.demo",
+        layout_width="fill",
+        singleLine=true,
+      },
+      {
+        TextView,
+        text="项目模板"
+      },
+      {
+        TextView,
+        id="project_Temple",
+        gravity="center";
+        TextSize=18;
+        text="无",
         layout_width="fill",
         singleLine=true,
       },

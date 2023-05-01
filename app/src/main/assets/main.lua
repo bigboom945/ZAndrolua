@@ -1,11 +1,7 @@
-_GS={}
-for k,v pairs(_G)
-  _GS[k]=v
-end
-_GS["_GS"]=nil
-
+CodePath="/storage/emulated/0/AndroLua/"
 base = activity.getSharedPreferences("Startupmain",activity.MODE_PRIVATE);
 isFirstStart = base.getBoolean("isFirstStart",true);
+luajava.bindClass("com.androlua.LuaActivityShare").setData("CodePaths",CodePath)
 
 if(isFirstStart)
   luajava.bindClass("com.androlua.LuaUtil").copyDir(tostring(activity.getFilesDir()).."/lua",activity.getLuaLibPath())
@@ -15,36 +11,39 @@ if(isFirstStart)
 end
 
 require "import"
-import "android.graphics.drawable.*"
-import "android.widget.*"
-import "java.util.zip.ZipOutputStream"
-import "java.util.zip.ZipEntry"
-import "java.util.zip.ZipFile"
-import "android.app.ProgressDialog"
-import "android.app.AlertDialog"
-import "android.app.Dialog"
-import "android.content.Context"
-import "android.content.Intent"
-import "android.content.ClipData"
-import "android.app.AlertDialogBuilder"
 import "android.os.Build"
-import "android.net.Uri"
-import "android.view.KeyEvent"
-import "android.view.MenuItem"
-import "android.view.SubMenu"
-import "java.util.Arrays"
-import "android.view.View"
-import "java.io.File"
 import "android.app.AlertDialog"
-import "java.io.FileOutputStream"
-import "java.io.FileInputStream"
+import "android.view.MenuItem"
+import "android.graphics.drawable.*"
 import "android.webkit.MimeTypeMap"
+import "java.io.FileInputStream"
+import "java.util.zip.ZipOutputStream"
+import "android.content.ClipData"
+import "java.util.Arrays"
+import "android.view.SubMenu"
+import "android.content.Context"
+import "android.graphics.Color"
+import "java.io.FileOutputStream"
+import "android.app.AlertDialogBuilder"
+import "android.graphics.drawable.ColorDrawable"
+import "android.view.KeyEvent"
+import "android.view.View"
+import "android.net.Uri"
+import "java.util.zip.ZipFile"
+import "java.io.File"
+import "android.app.Dialog"
+import "android.widget.*"
+import "java.util.zip.ZipEntry"
+import "android.app.ProgressDialog"
+import "android.content.Intent"
 import "xaplugControls"
+import "getAnno"
 import "xalstd"
 import "console"
 import "bin"
 import "cjson"
 import "autotheme"
+import "luacstrlib"
 require "layout"
 activity.setTitle('ZAndroLua+')
 activity.setTheme(autotheme())
@@ -53,6 +52,7 @@ AppSharedPreferences=activity.getSharedPreferences("xasetfil", Context.MODE_PRIV
 version = Build.VERSION.SDK_INT;
 h = tonumber(os.date("%H"))
 setsets=AppSharedPreferences.edit()
+backPath=CodePath.."backup/"
 
 function loadHelpData()
   local list={}
@@ -63,7 +63,7 @@ function loadHelpData()
     list[t]=c
     list[#list+1]=t
   end
-  LuaActivityShare.setData("HelpText",HashMap(list))
+  LuaActivityShare.setData("HelpText",list)
 end
 
 loadHelpData()
@@ -113,7 +113,10 @@ function onVersionChanged(n, o)
   修复大量bug。增加公告功能、dex合并功能。
   1.0.5
   修复bug，项目可以添加jar库了，加强帮助选项的内容。修复一系列bug，
-  并且解决原来无法给项目添加ZAndrolua+本身没有的权限的问题。]]
+  并且解决原来无法给项目添加ZAndrolua+本身没有的权限的问题。
+  1.0.6
+  添加模板功能，修复bug。
+  ]]
   if o == "" then
     File("/sdcard/AndroLua/xaplug").mkdir()
     title = "欢迎使用ZAndroLua+ " .. n
@@ -147,7 +150,7 @@ function xacfImport(paths,pathnames)
       if luaproject
         ZipUtil.unzip(paths,luaproject)
        else
-        ZipUtil.unzip(paths,"/storage/emulated/0/AndroLua/")
+        ZipUtil.unzip(paths,CodePath)
       end
   end})
   .setNeutralButton("取消",nil)
@@ -165,13 +168,13 @@ function xacfExports(paths)
   .setIcon(android.R.drawable.ic_dialog_info)
   .setView(editexts)
   .setPositiveButton("确定", function()
-    ZipUtil.zip(paths,"/storage/emulated/0/AndroLua/backup/")
+    ZipUtil.zip(paths,backPath)
     zipnamea=xalstd.string.split(paths,"/")
     zipname=zipnamea[#zipnamea-1]
     if (editexts.Text=="")
-      File("/storage/emulated/0/AndroLua/backup/"..zipname..".zip").renameTo(File("/storage/emulated/0/AndroLua/backup/"..zipnamea..".xacf"))
+      File(backPath..zipname..".zip").renameTo(File(backPath..zipnamea..".xacf"))
      else
-      File("/storage/emulated/0/AndroLua/backup/"..zipname..".zip").renameTo(File("/storage/emulated/0/AndroLua/backup/"..editexts.Text..".xacf"))
+      File(backPath..zipname..".zip").renameTo(File(backPath..editexts.Text..".xacf"))
     end
   end)
   .setNegativeButton("取消", nil)
@@ -249,14 +252,11 @@ luaproject = luaproject
 
 if luaproject then
   local p = {}
-
-
   local e = pcall(loadfile(luaproject .. "init.lua", "bt", p))
+  isProjetCompil=p.OpenJava or p.OpenTeal
   if e then
-
     activity.setTitle(tostring(p.appname))
     Toast.makeText(activity, "打开工程." .. p.appname, Toast.LENGTH_SHORT ).show()
-
   end
 end
 activity.getActionBar().setDisplayShowHomeEnabled(false)
@@ -297,7 +297,7 @@ user_permission={
   "INTERNET",
   "WRITE_EXTERNAL_STORAGE",
 }
-isRemoveInitLua=true
+isRemoveInitLua=false
 NotAddFile={"setting.luas"}
 ]]
 
@@ -481,14 +481,21 @@ function create_project()
   if not f.mkdirs() then
     print("工程创建失败")
     return
-
   end
+
   luadir = luaprojectdir .. appname .. "/"
-  write(luadir .. "init.lua", string.format("appname=\"%s\"\nappver=\"1.0\"\npackagename=\"%s\"\n%s", appname, packagename, upcode))
-  write(luadir .. "main.lua", pcode)
-  --  write(luadir .. "libs/", pcode)
-  write(luadir .. "layout.aly", lcode)
-  --project_dlg.hide()
+  if projectTemple
+    ZipUtil.unzip(projectTemple,luadir)
+    local init=io.open(luadir .. "init.lua")
+    write(luadir .. "init.lua",init:read("*a"):gsub("%$appname%$",[["]]..appname..[["]]):gsub("%$packagename%$",[["]]..packagename..[["]]))
+    init:close()
+   else
+    write(luadir .. "init.lua", string.format("appname=\"%s\"\nappver=\"1.0\"\nappsdk=\"15\"\nappSdk_target=\"18\"\npackagename=\"%s\"\n%s", appname, packagename, upcode))
+    write(luadir .. "main.lua", pcode)
+    --  write(luadir .. "libs/", pcode)
+    write(luadir .. "layout.aly", lcode)
+    --project_dlg.hide()
+  end
   luapath = luadir .. "main.lua"
   read(luapath)
 end
@@ -572,12 +579,14 @@ function read(path)
   if e then
     activity.setTitle(tostring(p.appname))
     luaproject = dir
+    isProjetCompil=p.OpenJava or p.OpenTeal
     activity.getActionBar().setSubtitle(path:sub(#luaproject))
     write(luaproj, string.format("luaproject=%q", luaproject))
     --Toast.makeText(activity, "打开工程."..p.appname, Toast.LENGTH_SHORT ).show()
    else
     activity.setTitle("ZAndroLua+")
     luaproject = nil
+    isProjetCompil=false
     write(luaproj, "luaproject=nil")
     --Toast.makeText(activity, "打开文件."..path, Toast.LENGTH_SHORT ).show()
   end
@@ -693,7 +702,6 @@ function create_aly()
 end
 
 function open(p)
-
   if p == luadir then
     return nil
   end
@@ -717,7 +725,19 @@ function open(p)
       luaproject=nil
     end
   end
+end
 
+function PlayProject()
+  if luaproject then
+    local path=luaproject.."/main.lua"
+    if debugisvar
+      activity.newActivity(luaproject,[[require("debugs")]])
+     else
+      activity.newActivity(luaproject)
+    end
+   else
+    activity.newActivity(luapath)
+  end
 end
 
 function sort(a, b)
@@ -727,6 +747,7 @@ function sort(a, b)
     return false
   end
 end
+
 function adapter(t)
   return ArrayListAdapter(activity, android.R.layout.simple_list_item_1, String(t))
 end
@@ -744,6 +765,7 @@ FileSuffix={
   ["html"]=true,
   ["aly"]=true,
   ["txt"]=true,
+  ["java"]=true,
 }
 BitFileSuffix={
   ["jpg"]=true,
@@ -756,7 +778,8 @@ BitFileSuffix={
   ["mp3"]=true,
   ["tl"]=true,
   ["xacf"]=true,
-  ["jar"]=true
+  ["jar"]=true,
+  ["luac"]=true
 }
 
 
@@ -1043,78 +1066,17 @@ end
 func.openproject = function()
   save()
   activity.newActivity("project/main.lua")
-
-  --[[ create_open_dlg2()
-      list2(listview2, luaprojectdir)
-      open_edit.Text=""
-      open_dlg2.show()]]
-
 end
 func.Anno=function()
-  --调用水仙平台API。
-  --2974349657是本项目作者自己的水仙平台账号。
-  --没有密码信息，别想盗号。
-  --攻击更别想，水仙平台可不是那么好打的
-  AannPrd=ProgressDialog.show(activity,nil,'加载中')
-  Http.post("http://shuixian.ltd/main/api/bulletin/bulletin.php",{admin="2974349657"},nil,nil,function(code,content)
-    AannPrd.hide()
-    if code==200
-      local jsonData=cjson.decode(content)
-      if jsonData.code==1
-        AlertDialog.Builder(this)
-        .setView(loadlayout({
-          LinearLayout;
-          layout_height="60%h";
-          layout_width="90%w";
-          orientation="vertical";
-          {
-            TextView;
-            gravity="center";
-            Text="公告";
-            layout_width="fill";
-            layout_height="5%h";
-            TextColor="#FF000000";
-            textSize="25";
-          };
-          {View;
-            backgroundColor="#FF7F7F7F";
-            layout_width="fill";
-            layout_height="0.1%h";
-          };
-          {
-            TextView;
-            layout_width="fill";
-            layout_height="-1";
-            Text=jsonData.data;
-            TextIsSelectable=true;
-            TextColor="#FF000000";
-            TextSize="18";
-          };
-          {
-            TextView;
-            layout_width="fill";
-            Text="@2023 水仙平台提供服务器和技术支持";
-          };
-        }))
-        .show()
-       else
-        print("获取公告失败或程序错误！")
-      end
-     else
-      print("服务器错误！")
-    end
-
-  end)
+  getAnno()
 end
 
 func.export = function()
   save()
   if luaproject then
-
     exportPrd = ProgressDialog(activity);
     exportPrd.setTitle("正在导出");
     exportPrd.show()
-
     task(export,luaproject,function(name)
       Toast.makeText(activity, "工程已导出." .. name, Toast.LENGTH_SHORT ).show()
       exportPrd.hide()
@@ -1128,7 +1090,6 @@ end
 
 func.save = function()
   save()
-  --- Toast.makeText(activity, "文件已保存." .. luapath, Toast.LENGTH_SHORT ).show()
 end
 
 func.play = function()
@@ -1141,16 +1102,16 @@ func.play = function()
     then
     return
   end
-  save()
-  if luaproject then
 
-    if debugisvar
-      activity.newActivity(luaproject .. "main.lua",[[require("debugs")]])
-     else
-      activity.newActivity(luaproject .. "main.lua")
-    end
+  save()
+  if isProjetCompil
+    local dlg = AlertDialogBuilder(activity)
+    dlg.setTitle("检测到项目可能为需要打包项目，是否继续运行。")
+    dlg.setPositiveButton("取消", nil)
+    dlg.setNegativeButton("确认", {onClick=PlayProject})
+    dlg.show()
    else
-    activity.newActivity(luapath)
+    PlayProject()
   end
 end
 
@@ -1214,7 +1175,6 @@ end
 
 func.luac = function()
   save()
-
   local path, str = console.build(luapath)
   ---str是编译出错时的错误信息
  ---path是编译出来的luac文件名。
@@ -1227,14 +1187,11 @@ func.luac = function()
 end
 
 func.build = function()
-
   if xaplugClick.build~=nil
     xaplugClick.build(luaproject)
     --插件打包事件
   end
-
   save()
-
   if luaproject then
     console.bin(luaproject .. "/")
    else
@@ -1292,10 +1249,7 @@ func.helper = function()
   activity.newActivity("layouthelper/main", { luaproject, luapath })
 end
 
-
-
 key2 = [[N_9Rrnm8jJcdcXs7TQsXQBVA8Liq8mhU]]
-
 key = [[QRDW1jiyM81x-T8RMIgeX1g_v76QSo6a]]
 function joinQQGroup(key)
   local intent = Intent();
@@ -1377,11 +1331,6 @@ if AppSharedPreferences.getString("isxaplug",nil)=="true"
   xaplugClick={}
 end
 function onCreate(s)
-  --[[ local intent=activity.getIntent()
-    local uri=intent.getData()
-    if not s and uri and uri.getPath():find("%.alp$") then
-      imports(uri.getPath())
-    else]]
   if pcall(read, luapath) then
     last = last or 0
     if last < editor.getText().length() then
@@ -1507,6 +1456,7 @@ function create_imports_dlg()
   end })
   imports_dlg.setNegativeButton("取消", nil)
 end
+
 function create_delete_dlg()
   if delete_dlg then
     return
@@ -1525,6 +1475,95 @@ function create_delete_dlg()
       end
   end })
   delete_dlg.setNegativeButton("取消", nil)
+end
+
+TemplateConf=
+{
+  {
+    name="无";
+    projectTemple=nil
+  },
+  {
+    name="网页转app";
+    projectTemple="Web2APP.zip"
+  },
+  {
+    name="简易帮助文档";
+    projectTemple="EasyHelpDocument.zip"
+  },
+  {
+    name="DrawerLayout";
+    projectTemple="DrawerLayout.zip"
+  },
+  {
+    name="TabBar";
+    projectTemple="TabBar.zip"
+  },
+  {
+    name="TitleBar";
+    projectTemple="TitleBar.zip"
+  },
+  {
+    name="TabBar and Drawer";
+    projectTemple="TabBarAndDrawer.zip"
+  }
+}
+
+TemplatePath=tostring(activity.getFilesDir()).."/Template/"
+
+function ProjectTempleChoose()
+
+  if not TemplateAdapter
+    TemplateAdapter=LuaAdapter(activity,{
+      LinearLayout;
+      layout_width="fill";
+      orientation="vertical";
+      layout_height="fill";
+      {TextView;
+        textSize="22";
+        gravity="center";
+        TextColor="#000000";
+        id="tv";
+        layout_width="fill";
+      },
+      {View;
+        layout_width="fill";
+        layout_height="1%h";
+    }})
+
+    for k,v in pairs(TemplateConf)
+      TemplateAdapter.add({tv={Text=v.name}})
+    end
+
+  end
+
+  projectTempleDiaog=AlertDialog.Builder(activity)
+  projectTempleDiaog.setView(loadlayout({
+    LinearLayout;
+    orientation="vertical";
+    layout_width="fill";
+    {
+      ListView;
+      layout_width="fill";
+      Divider=ColorDrawable(0);
+      Adapter=TemplateAdapter;
+      OnItemClickListener={
+        onItemClick=function(parent, v, pos,id)
+
+          if TemplateConf[id].projectTemple
+            projectTemple=TemplatePath..TemplateConf[id].projectTemple
+           else
+            projectTemple=nil
+          end
+
+          project_Temple.Text=TemplateConf[id].name
+          projectTempleDiaog.hide()
+        end
+      }
+    };
+  }))
+
+  projectTempleDiaog=projectTempleDiaog.show()
 end
 
 function imagdiog(imagpth,Title)
@@ -1547,25 +1586,6 @@ function imagdiog(imagpth,Title)
   图片对话框.show()
 end
 
-function apppOpenFile(path)
-  import "android.webkit.MimeTypeMap"
-  import "android.content.Intent"
-  import "android.net.Uri"
-  import "java.io.File"
-  FileName=tostring(File(path).Name)
-  ExtensionName=FileName:match("%.(.+)")
-  Mime=MimeTypeMap.getSingleton().getMimeTypeFromExtension(ExtensionName)
-  if Mime then
-    intent = Intent();
-    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-    intent.setAction(Intent.ACTION_VIEW);
-    intent.setDataAndType(Uri.fromFile(File(path)), Mime);
-    activity.startActivity(intent);
-   else
-    Toastc("找不到可以用来打开此文件的程序")
-  end
-end
-
 function create_open_dlg()
   if not open_dlg
     open_dlg = AlertDialogBuilder(activity)
@@ -1579,21 +1599,11 @@ function create_open_dlg()
       onItemClick = function(parent, v, pos, id)
 
         if(string.match(v.Text,"%.xacf$")~=nil)
-
           xacfImport(luadir..v.Text,v.Text)
-         elseif(string.match(v.Text,"%.dex$")~=nil)
-          print("此文件为二进制字节码文件，打开只会显示乱码")
-          open(v.Text)
-         elseif(string.match(v.Text,"%.html$")~=nil)
-          apppOpenFile(luadir..v.Text)
          elseif(string.match(v.Text,"%.png$")~=nil)
           imagdiog(luadir..v.Text,"图片查看器")
-         elseif(string.match(v.Text,"%.pk8$")~=nil)
-          print("此文件为应用签名密钥文件，打开只会显示乱码")
-          open(v.Text)
          else
           open(v.Text)
-
         end
 
       end
@@ -1660,7 +1670,6 @@ function create_open_dlg2()
   end
 end
 
-
 function create_create_dlg()
   if create_dlg then
     return
@@ -1670,21 +1679,21 @@ function create_create_dlg()
   create_dlg.setTitle("新建")
   create_dlg.setView(loadlayout({
     LinearLayout;
-    layout_width="90%w";
+    layout_width="96%w";
     orientation="vertical";
     gravity="center";
     {
       EditText;
-      layout_width="80%w";
+      layout_width="90%w";
       id="create_e";
     };
     {
       LinearLayout;
-      layout_width="80%w";
+      layout_width="86%w";
       orientation="horizontal";
       {
         TextView;
-        layout_width="20%w";
+        layout_width="16%w";
         textSize="26";
         Text=".ALY";
         onClick=create_aly;
@@ -1692,7 +1701,7 @@ function create_create_dlg()
       };
       {
         TextView;
-        layout_width="20%w";
+        layout_width="16%w";
         textSize="26";
         TextColor="#ff008577";
         onClick=create_dir;
@@ -1700,7 +1709,7 @@ function create_create_dlg()
       };
       {
         TextView;
-        layout_width="20%w";
+        layout_width="16%w";
         textSize="26";
         TextColor="#ff008577";
         onClick=create_lua;
@@ -1708,12 +1717,12 @@ function create_create_dlg()
       };
       {
         TextView;
-        layout_width="20%w";
+        layout_width="16%w";
         TextColor="#ff008577";
         textSize="26";
         onClick=create_tl;
         Text=".TL";
-      };
+      }
     }
   }))
 end
@@ -1729,6 +1738,7 @@ function create_project_dlg()
   project_dlg.setView(loadlayout(layout.project))
   project_dlg.setPositiveButton("确定", { onClick = create_project })
   project_dlg.setNegativeButton("取消", nil)
+  project_Temple.setOnClickListener({onClick=ProjectTempleChoose})
 end
 
 function create_build_dlg()
@@ -1851,15 +1861,7 @@ function initUserAdds()
 
   end
 end
-
-
 initUserAdds()
-
-
-
-
-
-
 
 ---部分输入补全提示。
 local function adds()
@@ -1871,11 +1873,6 @@ local function adds()
     "this",
     "onResume",
     "onPause",
-    "Build.VERSION.RELEASE",
-    "Build.VERSION.CODENAME",
-    "Build.VERSION.SDK_INT",
-    "Build.VERSION.INCREMENTAL",
-    "Build.HOST",
     "onStop",
     "onDestroy",
     "onActivityResult",
@@ -1886,7 +1883,6 @@ local function adds()
     "onTouch",
     "_VERSION",
     "LuaListView",
-    "LuaEditorz",
     "...",
     "onLongClick",
     "onItemClick",

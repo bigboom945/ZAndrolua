@@ -46,7 +46,7 @@ function format(Text)
 end
 
 
-function build(path)
+function build(path,isdebug)
   if path then
     local str,st=loadfile(path)
     if st then
@@ -54,8 +54,7 @@ function build(path)
     end
 
     local path=path..'c'
-
-    local st,str=pcall(string.dump,str,true)
+    local st,str=pcall(string.dump,str,not isdebug)
     if st then
       f=io.open(path,'wb')
       f:write(str)
@@ -69,17 +68,14 @@ function build(path)
 end
 
 
-function build_tl(path2,name,dir,isluac,TypeDescribePath)
-
+function build_tl(path2,name,dir,TypeDescribePath,isluac,isdebug)
   package.path=path2.."?.lua;"
   package.path=package.path..tostring(activity.getFilesDir()).."/TealTypeModel/?.lua;"
   package.path=package.path..table.concat(TypeDescribePath or {},";")
-
   local names=string.gsub(name,"tl$","lua")
-  local path=string.gsub(path2,"tl$","lua")
   local addStr=[[require("luajava")]]
 
-  if(io.open(path))
+  if(io.open(string.gsub(path2,"tl$","lua"),"r"))
     return nil,string.format("Teal (tl) files and Lua files cannot exist with the same name. ErroFile:%q,%q",name,names),""
   end
 
@@ -112,28 +108,24 @@ function build_tl(path2,name,dir,isluac,TypeDescribePath)
     warnings=warnings..formatstr("Line %q,Char %q,tag %q: %q",v.y,v.x,v.tag,v.msg).."\n"
   end
 
+  if isluac
+    str,st=loadstring(GenCode)
 
-  if(isluac)
-    local str,st=loadstring(GenCode)
-
-    if st then
+    if st
       return nil,st,GenCode,warnings
     end
 
-    local st,str=pcall(string.dump,str,true)
+    st,str=pcall(string.dump,str,not isdebug)
 
     if st then
-      io.open(path,'wb'):write(str):close()
-      return names,nil,GenCode,warnings
+      return names,nil,str,warnings
      else
       return nil,str,GenCode,warnings
     end
-
+  
    else
-    io.open(path,'wb'):write(GenCode):close()
     return names,nil,GenCode,warnings
   end
-
 end
 
 

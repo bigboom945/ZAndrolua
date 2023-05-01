@@ -20,14 +20,11 @@ public class LuaCanvasView extends View
 	public  LuaCanvasView(Context context, AttributeSet attrs) 
 	{
 		super(context, attrs);
-		
 	}
-
 
 	public LuaCanvasView(Context context)
 	{
 		super(context);
-
 	}
 
 	@Override

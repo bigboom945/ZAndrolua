@@ -22,9 +22,6 @@ import "com.zajt.*"
 require "xalstd"
 require "xml"
 
-
-
-
 local bin_dlg, error_dlg
 local function update(s)
   bin_dlg.setMessage(s)
@@ -45,24 +42,25 @@ function WhetherExistTXTFile(dirs)
     filename = f.getName();
     if(string.match(filename,".*%.(apk)"))
 
-
       return true;
     end
   end
   return false;
 end
-local function callback(s,err)
+
+local function callback(s,iserr)
   System.gc()
   LuaUtil.rmDir(File(activity.getLuaExtDir("bin/.temp")))
   bin_dlg.dismiss()
 
-  if s:find("成功") then
+  if iserr
+    then
+    error_dlg.Message = s
+    error_dlg.show()
+   else
     AlertDialog.Builder(activity)
     .setMessage(s)
     .show()
-   else
-    error_dlg.Message = s
-    error_dlg.show()
   end
 
 end
@@ -91,7 +89,7 @@ local function binapk(luapath, apkpath)
   require "import"
   compile "AxmlEditor"
   compile "sign"
-  compile "za-dx-1.14"
+  compile "za-dx-1.16"
   import "console"
   import "java.util.zip.*"
   import "java.io.*"
@@ -104,10 +102,13 @@ local function binapk(luapath, apkpath)
   import "com.android.dx.command.dexer.Main"
   import "com.android.dex.Dex"
   import "com.android.dx.command.dexer.DxContext"
-  import "java.io.ByteArrayOutputStream"
   import "java.io.ByteArrayInputStream"
+  import "java.io.ByteArrayOutputStream"
+  import "java.io.PrintWriter"
   import "AxmlEditor.AxmlEditor"
   import "tl"
+  EcjDex=activity.loadDex("za-ecj-4.2.2")
+  EcjMain=EcjDex.loadClass("org.eclipse.jdt.internal.compiler.batch.Main")
   local b = byte[65536]
   -----2 ^ 16
   local CompileWarnings=""
@@ -117,8 +118,11 @@ local function binapk(luapath, apkpath)
   local DefNotAddDir={
     ["so/"]=true,
     ["Build/"]=true,
-    ["BuildScript/"]=true
   }
+
+  local function finstart(s,s2)
+    return string.sub(s,1,#s2)==s2
+  end
 
   local function copy(input, output)
     LuaUtil.copyFile(input, output)
@@ -139,6 +143,41 @@ local function binapk(luapath, apkpath)
     end
 
     return nil
+  end
+
+  local function ecj(libs,android_jar,java,classs,JavaFile)
+    local main =EcjMain(PrintWriter(JavaCompileMessage), PrintWriter(JavaErrorMessage),false,nil,nil);
+    --像下面这样可以直接打印信息
+    --Main main= Main( PrintWriter(System.out), PrintWriter(System.err),false,null,null);
+
+    local args =
+    {
+      "-verbose",
+      --第三方jar文件存放路径
+      "-extdirs",libs,
+      --android.jar文件路径
+      "-bootclasspath",android_jar,
+      --java文件存放路径
+      "-classpath",java..
+      --第三方jar文件存放路径，如果没有使用第三方jar那就不用添加，它们之间用冒号隔开
+      libs,
+      "-"..Java.Version,
+      "-target",Java.Version,
+      "-proc:none",
+      --class文件存放路径
+      "-d",classs,
+      --被编译的java文件
+      JavaFile
+    };
+
+    --执行编译并返回结果
+    local b = main.compile(args);
+    --如果失败请打印此信息
+    --获得编译信息字符串
+    local s1 = tostring(JavaCompileMessage)
+    --获得错误信息字符串
+    local s2 = tostring(JavaErrorMessage)
+    return not b,s1,s2;
   end
 
   local function GenDex(dex,classs,libs)
@@ -165,6 +204,12 @@ local function binapk(luapath, apkpath)
   end
 
   local function isalylibErr(path,name,dir)
+    local path=path
+
+    if(isRemoveInitLua and (dir..name=="init.lua"))
+      path=path.."s"
+      io.open(path,"w"):write(string.format("debugmode=%q\nappname=%q\ntheme=%q",debugmode,appname,theme)):close()
+    end
 
     if (NotLuaCompile[dir..name] or NotLuaCompileAll)
       local f,st=io.open(path)
@@ -178,7 +223,12 @@ local function binapk(luapath, apkpath)
     return console.build_aly(path)
   end
 
-  local function islualibErr(path,name,dir)
+  local function Nullfunction()
+
+  end
+
+  local function islualibErr(path,name,dir,isdebug)
+    local path=path
     if (NotLuaCompile[dir..name] or NotLuaCompileAll)
       local rf,err=loadfile(path, "bt", {})
       if err~=nil
@@ -188,7 +238,7 @@ local function binapk(luapath, apkpath)
       end
     end
 
-    return console.build(path)
+    return console.build(path,isdebug)
   end
 
   local function v2k(tab)
@@ -196,8 +246,6 @@ local function binapk(luapath, apkpath)
       tab[v]=true;
     end
   end
-
-
 
 
   local function copy2(input, output)
@@ -332,38 +380,19 @@ local function binapk(luapath, apkpath)
     for n = 0, #ls - 1 do
       local name = ls[n].getName()
       local RePa=dir..name
-
       if name==".using" then
         checklib(luapath .. dir .. name)
        elseif NotAddFile[RePa]~= nil then
-       elseif(isRemoveInitLua and RePa=="init.lua")
-        local path=luapath .. dir .. name
-        if(debugmode)
-          path=path.."c"
-          io.open(path,'wb'):write("debugmode=true"):close()
-          if replace["assets/" .. dir .. name] then
-            table.insert(errbuffer, dir .. name .. "/.aly")
-          end
-
-          local entry = ZipEntry("assets/" .. dir .. name)
-          out.putNextEntry(entry)
-          replace["assets/" .. dir .. name] = true
-          copy(FileInputStream(File(path)), out)
-          table.insert(md5s, LuaUtil.getFileMD5(path))
-          os.remove(path)
-        end
-
        elseif name:find("%.apk$") or name:find("%.luac$") or name:find("^%.") then
         --- elseif(no_pack_file_b[name])
        elseif name:find("%.lua$") then
+        local entry = ZipEntry("assets/" .. dir .. name)
         checklib(luapath .. dir .. name)
-        local path, err,isluac= islualibErr(luapath .. dir .. name,name,dir)
+        local path, err,isluac= islualibErr(luapath .. dir .. name,name,dir,debugmode)
         if path then
           if replace["assets/" .. dir .. name] then
             table.insert(errbuffer, dir .. name .. "/.aly")
           end
-
-          local entry = ZipEntry("assets/" .. dir .. name)
           out.putNextEntry(entry)
           replace["assets/" .. dir .. name] = true
           copy(FileInputStream(File(path)), out)
@@ -371,10 +400,12 @@ local function binapk(luapath, apkpath)
           if isluac
             os.remove(path)
           end
+          if(isRemoveInitLua and RePa=="init.lua")
+            os.remove(path)
+          end
          else
           table.insert(errbuffer, err)
         end
-
        elseif name:find("%.jar$") then
         if(not find(JarList,RePa))
           local entry = ZipEntry("assets/" .. dir .. name)
@@ -384,20 +415,21 @@ local function binapk(luapath, apkpath)
           table.insert(md5s, LuaUtil.getFileMD5(ls[n]))
         end
 
+       elseif name:find("%.java$") and OpenJava and finstart(dir,Java.JavaSrc) then
+        local iserr,Winnings,errmsg=ecj("",activity.getLuaDir().."/android.jar",luapath..Java.JavaSrc,BuildJarFilePath,luapath..RePa)
+        if(iserr)
+          table.insert(errbuffer,errmsg)
+        end
        elseif (name:find("%.tl$") and OpenTeal) then
-
         if(not (Teal.TypeDescFile or {})[RePa])
-
-          local name2, err,GenCode,warnings= console.build_tl(luapath .. dir .. name,name,dir,not ((NotLuaCompile[RePa] or NotLuaCompileAll)),Teal.TypeDescribePath)
+          local name2, err,GenCode,warnings= console.build_tl(luapath ..RePa,name,dir,Teal.TypeDescribePath,not (NotLuaCompile[RePa] or NotLuaCompileAll),debugmode)
 
           if(warnings)
-            CompileWarnings=CompileWarnings..luapath .. dir ..name..":"..warnings.."\n"
+            CompileWarnings=CompileWarnings..luapath ..RePa..":"..warnings.."\n"
           end
 
           if name2 then
-
             local path=luapath .. dir ..name2
-
             checklib(path,GenCode)
 
             if replace["assets/" .. dir .. name2] then
@@ -407,14 +439,14 @@ local function binapk(luapath, apkpath)
             local entry = ZipEntry("assets/" .. dir .. name2)
             out.putNextEntry(entry)
             replace["assets/" .. dir .. name2] = true
-            copy(FileInputStream(File(path)), out)
+            io.open(path, "w"):write(GenCode):close()
+            copy(FileInputStream(path),out)
             table.insert(md5s, LuaUtil.getFileMD5(path))
             os.remove(path)
            else
             table.insert(errbuffer, err)
           end
         end
-
        elseif name:find("%.dex$") then
         if(MergeDex[RePa] or MergeDexAll)
           table.insert(MergeDexList,Dex(File(luapath..dir..name)))
@@ -467,7 +499,6 @@ local function binapk(luapath, apkpath)
       end
     end
   end
-
 
   local function addJarFile(path,out)
     if(File(path).exists())
@@ -553,7 +584,7 @@ local function binapk(luapath, apkpath)
         end
         JarZip.close()
         luajava.clear(vf)
-        else
+       else
         table.insert(errbuffer,"not JarFile:"..v)
       end
     end
@@ -564,12 +595,8 @@ local function binapk(luapath, apkpath)
     require "permission"
     dofile(luapath .. "init.lua")
 
-    if MainBuildScript~=nil and MainBuildScript~=""
-      dofile(luapath..MainBuildScript..".lua")
-     else
-      if File(luapath.."buildScript/main.lua").exists()==true
-        dofile(luapath.."buildScript/main.lua")
-      end
+    if((BuildScript~="")and(BuildScript~=nil))
+      dofile(luapath..BuildScript)
     end
 
     NoAddDir=NoAddDir or {}
@@ -620,9 +647,11 @@ local function binapk(luapath, apkpath)
     end
 
     Teal=Teal or {}
+    Java=Java or {}
     CustomizeApkPath= CustomizeApkPath or {}
-
     MergeDexList={}
+    Java.JavaSrc=Java.JavaSrc or "Java"
+    Java.Version=Java.Version or "1.7"
     JarList=AddJar
 
     v2k(NoAddDir)
@@ -631,9 +660,21 @@ local function binapk(luapath, apkpath)
     v2k(MergeDex)
     v2k(NotLuaLibCompile)
     v2k(Teal.TypeDescFile or {})
-    
+
+    if string.sub(Java.JavaSrc,#Java.JavaSrc,#Java.JavaSrc)~="/"
+      Java.JavaSrc=Java.JavaSrc.."/"
+    end
+
     if AddJarAll
       findJar(out, "", f)
+    end
+
+    if OpenJava
+      File(BuildJarFilePath).mkdirs()
+      --编译信息
+       JavaCompileMessage= ByteArrayOutputStream();
+      --错误信息
+       JavaErrorMessage = ByteArrayOutputStream();
     end
 
     local ss, ee = pcall(addDir, out, "", f)
@@ -646,6 +687,7 @@ local function binapk(luapath, apkpath)
       this.update("UnJarFile...");
       unJarFile(luapath,JarList)
     end
+
 
     addJarFile(BuildJarFilePath,out)
 
@@ -749,26 +791,40 @@ local function binapk(luapath, apkpath)
      elseif name:find("^assets/") then
      elseif name:find("^lua/") then
      elseif name:find("META%-INF") then
-     elseif name=="classes.dex" then
+     elseif name=="classes.dex"  then
       ClassesDexData=LuaUtil.readAll(zis)
      else
       local entry = ZipEntry(name)
       out.putNextEntry(entry)
       if entry.getName() == "AndroidManifest.xml" then
         local xml=AxmlEditor(zis)
+        local appsdk=tointeger(appsdk) or 18
 
         if path_pattern and #path_pattern > 1 then
           path_pattern = ".*\\\\." .. path_pattern:match("%w+$")
           xml.setPathPattern("com.androlua.Main",path_pattern)
         end
 
+        if tointeger(PlatformBuildVersionCode)
+          xml.setPlatformBuildVersionCode(tointeger(PlatformBuildVersionCode))
+        end
 
-        xml.setUsePermissions(String(handlePermissionTable(user_permission)))
+        if not (PlatformBuildVersionName=="")
+          xml.setPlatformBuildVersionName(PlatformBuildVersionName)
+        end
+
+        if tointeger(appSdk_target) and tointeger(appsdk)
+          if tointeger(appSdk_target)<tointeger(appsdk)
+            table.insert(errbuffer, "appsdk(minSdk) cannot be greater than appSdk_target(TargetSdk)")
+          end
+        end
+
+        xml.setUsePermissions(String(handlePermissionTable(user_permission or {})))
         xml.setAppName(appname)
-        xml.setMinimumSdk(int(tointeger(appsdk) or 18))
-        xml.setTargetSdk(int(tointeger(appSdk_target) or 23))
+        xml.setMinimumSdk(int(tointeger(appsdk)))
+        xml.setTargetSdk(int(tointeger(appSdk_target) or tointeger(appsdk+1)))
         xml.setPackageName(packagename)
-        xml.setVersionCode(int(tointeger(appcode)))
+        xml.setVersionCode(int(tointeger(appcode or 1)))
         xml.setVersionName(appver or "1.0")
         xml.commit()
         xml.writeTo(out)
@@ -784,7 +840,7 @@ local function binapk(luapath, apkpath)
 
   table.insert(MergeDexList,Dex(ClassesDexData))
 
-  if(#JarList>0)
+  if((#JarList>0)or OpenJava)
     GenDex(BuildPath.."ClassDex.dex",BuildJarFilePath)
     if(File(BuildPath.."ClassDex.dex").exists())
       table.insert(MergeDexList,Dex(File(BuildPath.."ClassDex.dex")))
@@ -825,10 +881,10 @@ local function binapk(luapath, apkpath)
       CompileWarnings="\nTealWarnings:\n"..CompileWarnings
     end
 
-    return "打包成功:"..apkpath.."\n编译信息:"..CompileWarnings
+    return "打包成功:"..apkpath.."\n编译信息:"..CompileWarnings,false
    else
     os.remove(tmp)
-    return "打包出错:\n " .. table.concat(errbuffer, "\n").."\nTealWarnings:\n"..CompileWarnings,table.concat(errbuffer, "\n")
+    return "打包出错:\n " .. table.concat(errbuffer, "\n").."\nTealWarnings:\n"..CompileWarnings,true
   end
 
 end

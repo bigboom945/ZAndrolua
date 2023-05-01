@@ -50,6 +50,7 @@ import java.util.HashMap;
 import com.androlua.Z.*;
 import com.luajava.*;
 import android.widget.*;
+import android.graphics.Color;
 
 public class LuaWebView extends WebView implements LuaGcable
 {
@@ -197,9 +198,6 @@ public class LuaWebView extends WebView implements LuaGcable
 								   EditText prompt_input_field = new EditText(mContext);
 								   public boolean onJsAlert(WebView view, String url, String message, final android.webkit.JsResult result)
 								   {
-
-
-
 									   new AlertDialog.Builder(mContext)
 										   . setTitle(url)
 										   . setMessage(message)
